@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfeeff"/><stop offset="1" stop-color="#e9f9ff"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5fd0ee"/><stop offset="1" stop-color="#2ba6d6"/>
+    </linearGradient>
+    <radialGradient id="strawberry" cx="40%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#ff7b8a"/><stop offset="1" stop-color="#e5324f"/>
+    </radialGradient>
+    <clipPath id="frame"><rect width="512" height="512" rx="64"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <!-- 하늘 -->
+    <rect width="512" height="512" fill="url(#sky)"/>
+    <!-- 해 -->
+    <circle cx="410" cy="100" r="46" fill="#ffe27a"/>
+    <circle cx="410" cy="100" r="62" fill="#ffe27a" opacity=".3"/>
+    <!-- 구름 -->
+    <g fill="#fff">
+      <ellipse cx="100" cy="95" rx="42" ry="20"/><ellipse cx="135" cy="85" rx="30" ry="22"/><ellipse cx="72" cy="88" rx="26" ry="17"/>
+    </g>
+    <!-- 바다 -->
+    <rect y="300" width="512" height="212" fill="url(#sea)"/>
+    <g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".7">
+      <path d="M30 335 q20 -14 40 0 t40 0"/>
+      <path d="M390 350 q20 -14 40 0 t40 0"/>
+      <path d="M60 400 q20 -14 40 0 t40 0"/>
+      <path d="M360 430 q20 -14 40 0 t40 0"/>
+    </g>
+    <!-- 멀리 있는 오름/섬 -->
+    <path d="M300 300 q60 -70 120 0z" fill="#8fd6a0"/>
+    <path d="M360 300 q40 -40 90 0z" fill="#6fc48a"/>
+    <!-- 모래 -->
+    <path d="M0 470 q256 -50 512 0 v42 h-512z" fill="#ffe9b8"/>
+  </g>
+
+  <!-- 몸 (노란 티셔츠) -->
+  <path d="M170 470 q0 -90 86 -90 q86 0 86 90 z" fill="#ffd54f"/>
+  <path d="M226 382 q30 24 60 0" fill="none" stroke="#ffb300" stroke-width="6" stroke-linecap="round"/>
+  <!-- 팔 -->
+  <circle cx="172" cy="430" r="22" fill="#ffd9b8"/>
+  <circle cx="340" cy="430" r="22" fill="#ffd9b8"/>
+
+  <!-- 얼굴 -->
+  <circle cx="256" cy="278" r="102" fill="#ffe0c2"/>
+  <!-- 귀 -->
+  <circle cx="156" cy="290" r="18" fill="#ffd2ae"/>
+  <circle cx="356" cy="290" r="18" fill="#ffd2ae"/>
+  <!-- 볼터치 -->
+  <ellipse cx="200" cy="312" rx="18" ry="11" fill="#ff9aa8" opacity=".6"/>
+  <ellipse cx="312" cy="312" rx="18" ry="11" fill="#ff9aa8" opacity=".6"/>
+  <!-- 눈 -->
+  <ellipse cx="216" cy="282" rx="11" ry="14" fill="#3a2a2a"/>
+  <ellipse cx="296" cy="282" rx="11" ry="14" fill="#3a2a2a"/>
+  <circle cx="220" cy="277" r="4.5" fill="#fff"/>
+  <circle cx="300" cy="277" r="4.5" fill="#fff"/>
+  <!-- 입 -->
+  <path d="M236 318 q20 22 40 0" fill="#e5566a" stroke="#c43c52" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- 딸기 모자 -->
+  <path d="M148 250 q-10 -120 108 -128 q118 8 108 128 q-108 -34 -216 0z" fill="url(#strawberry)"/>
+  <!-- 딸기 씨 -->
+  <g fill="#ffe27a">
+    <ellipse cx="200" cy="190" rx="5" ry="8" transform="rotate(-20 200 190)"/>
+    <ellipse cx="256" cy="168" rx="5" ry="8"/>
+    <ellipse cx="312" cy="190" rx="5" ry="8" transform="rotate(20 312 190)"/>
+    <ellipse cx="170" cy="228" rx="5" ry="8" transform="rotate(-30 170 228)"/>
+    <ellipse cx="226" cy="216" rx="5" ry="8" transform="rotate(-10 226 216)"/>
+    <ellipse cx="286" cy="216" rx="5" ry="8" transform="rotate(10 286 216)"/>
+    <ellipse cx="342" cy="228" rx="5" ry="8" transform="rotate(30 342 228)"/>
+  </g>
+  <!-- 모자 하이라이트 -->
+  <path d="M190 160 q20 -24 50 -28" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".55"/>
+  <!-- 딸기 꼭지 잎 -->
+  <g fill="#4cc26a">
+    <path d="M256 126 q-48 -10 -54 -42 q40 2 54 42z"/>
+    <path d="M256 126 q48 -10 54 -42 q-40 2 -54 42z"/>
+    <path d="M256 126 q-14 -36 0 -62 q14 26 0 62z"/>
+  </g>
+</svg>
