@@ -1,25 +1,2 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>친구랑 제주 | 여행 추천 코스</title>
+안녕하세요
 
-</head>
-<body>
-<header class="hero">
-  <div class="sun"></div>
-  <img class="mascot" src="images/character_2.svg" alt="돛단배 모자를 쓴 제주 여행 캐릭터" width="180" height="180">
- 
-</header>
-
-
-<script>
-  const btns=document.querySelectorAll('#filters button'),cards=document.querySelectorAll('.card');
-  btns.forEach(b=>b.onclick=()=>{
-    btns.forEach(x=>x.classList.remove('on'));b.classList.add('on');
-    cards.forEach(c=>c.classList.toggle('hide',b.dataset.f!=='all'&&c.dataset.c!==b.dataset.f));
-  });
-</script>
-</body>
-</html>
