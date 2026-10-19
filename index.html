@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>친구랑 제주 | 여행 추천 코스</title>
+<style>
+  :root{--sea:#2ba6d6;--sea-d:#0f6f9c;--orange:#ff8a1f;--ink:#23323d;--bg:#f4fbff;--card:#fff}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.65;word-break:keep-all;
+    font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+  .hero{position:relative;overflow:hidden;color:#fff;text-align:center;padding:90px 20px 110px;
+    background:linear-gradient(180deg,#5cc8ee 0%,#2ba6d6 55%,#1b86b8 100%)}
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:70px;
+    background:radial-gradient(60px 28px at 30px 70px,var(--bg) 98%,transparent) repeat-x;background-size:120px 70px}
+  .sun{position:absolute;top:34px;right:12%;width:84px;height:84px;border-radius:50%;
+    background:radial-gradient(circle,#fff6c9,#ffd45a);box-shadow:0 0 60px #fff3a8}
+  .hero h1{position:relative;margin:0 0 10px;font-size:clamp(2.2rem,7vw,4rem);text-shadow:0 4px 14px #0a527766}
+  .hero p{position:relative;margin:0 auto;max-width:560px;font-size:clamp(1rem,2.4vw,1.2rem)}
+  .tags{position:relative;margin-top:22px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .tags span{background:#ffffff33;border:1px solid #ffffff66;padding:5px 14px;border-radius:999px;font-size:.9rem}
+  .wrap{width:min(1080px,92vw);margin:0 auto}
+  .filters{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:26px 0 8px}
+  .filters button{border:2px solid var(--sea);background:#fff;color:var(--sea-d);padding:8px 18px;border-radius:999px;
+    font-size:1rem;font-weight:700;cursor:pointer;transition:.2s}
+  .filters button.on,.filters button:hover{background:var(--sea);color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:22px;padding:18px 0 50px}
+  .card{background:var(--card);border-radius:22px;overflow:hidden;box-shadow:0 8px 24px #0f6f9c1f;
+    transition:transform .25s,box-shadow .25s}
+  .card:hover{transform:translateY(-6px);box-shadow:0 16px 34px #0f6f9c33}
+  .card.hide{display:none}
+  .pic{height:150px;display:flex;align-items:center;justify-content:center;font-size:4.2rem;position:relative}
+  .pic small{position:absolute;left:14px;top:12px;background:#ffffffd9;color:var(--ink);font-size:.78rem;font-weight:700;
+    padding:3px 10px;border-radius:999px}
+  .body{padding:16px 18px 20px}
+  .body h3{margin:0;font-size:1.25rem}
+  .area{color:var(--sea-d);font-size:.88rem;font-weight:700;margin-bottom:6px}
+  .body p{margin:0 0 10px;font-size:.96rem}
+  .tip{background:#fff4e6;border-left:4px solid var(--orange);border-radius:8px;padding:8px 12px;font-size:.88rem}
+  .course{background:linear-gradient(135deg,#fff4e6,#e6f6ff);padding:50px 0}
+  .course h2,.sec-title{text-align:center;font-size:1.8rem;margin:0 0 6px}
+  .sub{text-align:center;color:#58707f;margin:0 0 28px}
+  .days{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+  .day{background:#fff;border-radius:20px;padding:22px;box-shadow:0 6px 18px #0f6f9c18}
+  .day h3{margin:0 0 10px;color:var(--orange)}
+  .day ol{margin:0;padding-left:20px}
+  .day li{margin-bottom:6px}
+  footer{text-align:center;padding:28px 16px;color:#6a808d;font-size:.9rem}
+  @media(max-width:520px){.sun{width:60px;height:60px;right:8%}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="sun"></div>
+  <h1>🌊 친구랑 제주, 어디 갈래?</h1>
+  <p>바다·오름·카페·먹거리까지, 둘이서 사진도 추억도 가득 남길 수 있는 제주 여행지를 골라 봤어요.</p>
+  <div class="tags"><span>#뚜벅이도OK</span><span>#인생샷</span><span>#힐링</span><span>#맛집탐방</span></div>
+</header>
+
+<main class="wrap">
+  <div class="filters" id="filters">
+    <button class="on" data-f="all">전체</button>
+    <button data-f="sea">🌊 바다</button>
+    <button data-f="nature">⛰️ 자연·오름</button>
+    <button data-f="cafe">☕ 카페·감성</button>
+    <button data-f="food">🍊 먹거리</button>
+  </div>
+
+  <div class="grid" id="grid">
+    <article class="card" data-c="sea">
+      <div class="pic" style="background:linear-gradient(135deg,#a8e6ff,#4fb8e8)">🏖️<small>바다</small></div>
+      <div class="body"><h3>협재해수욕장</h3><div class="area">📍 제주시 한림읍</div>
+        <p>에메랄드빛 바다와 하얀 모래, 멀리 비양도가 보이는 서쪽 대표 해변이에요.</p>
+        <div class="tip">💡 해 질 무렵 노을이 특히 예뻐요.</div></div>
+    </article>
+    <article class="card" data-c="sea">
+      <div class="pic" style="background:linear-gradient(135deg,#b7f0e0,#3fc1b0)">🚗<small>바다</small></div>
+      <div class="body"><h3>애월 해안도로</h3><div class="area">📍 제주시 애월읍</div>
+        <p>바다를 옆에 끼고 드라이브하거나 걷기 좋은 길. 길 따라 감성 카페가 이어져요.</p>
+        <div class="tip">💡 카페 한 곳 정해 두고 천천히 쉬어 가기 좋아요.</div></div>
+    </article>
+    <article class="card" data-c="sea">
+      <div class="pic" style="background:linear-gradient(135deg,#c9f1ff,#7ad0ee)">🐚<small>바다</small></div>
+      <div class="body"><h3>함덕해수욕장</h3><div class="area">📍 제주시 조천읍</div>
+        <p>물빛이 맑고 수심이 얕아 친구와 가볍게 물놀이·산책하기 좋은 동쪽 해변이에요.</p>
+        <div class="tip">💡 근처 서우봉 산책로에서 해변 전경을 볼 수 있어요.</div></div>
+    </article>
+    <article class="card" data-c="sea">
+      <div class="pic" style="background:linear-gradient(135deg,#ffe3b8,#ffb25a)">🚲<small>바다</small></div>
+      <div class="body"><h3>우도</h3><div class="area">📍 성산항에서 배로 이동</div>
+        <p>배를 타고 들어가는 작은 섬. 자전거나 전기 스쿠터로 한 바퀴 돌며 바다 풍경을 즐겨요.</p>
+        <div class="tip">💡 배 시간과 운항 여부는 출발 전에 꼭 확인하세요.</div></div>
+    </article>
+
+    <article class="card" data-c="nature">
+      <div class="pic" style="background:linear-gradient(135deg,#ffd9a0,#ff9a4a)">🌅<small>자연·오름</small></div>
+      <div class="body"><h3>성산일출봉</h3><div class="area">📍 서귀포시 성산읍</div>
+        <p>유네스코 세계자연유산. 정상까지 올라가면 분화구와 바다가 한눈에 펼쳐져요.</p>
+        <div class="tip">💡 일출 보려면 이른 아침 출발! 편한 운동화는 필수.</div></div>
+    </article>
+    <article class="card" data-c="nature">
+      <div class="pic" style="background:linear-gradient(135deg,#d8f3b5,#7cc86b)">🌾<small>자연·오름</small></div>
+      <div class="body"><h3>새별오름</h3><div class="area">📍 제주시 애월읍</div>
+        <p>완만하게 올라 서쪽 들판과 바다까지 보이는 오름. 억새가 핀 가을 풍경이 유명해요.</p>
+        <div class="tip">💡 정상까지 가볍게 오를 수 있어 처음 오름 도전에 좋아요.</div></div>
+    </article>
+    <article class="card" data-c="nature">
+      <div class="pic" style="background:linear-gradient(135deg,#cfe8ff,#8ab4e8)">🏔️<small>자연·오름</small></div>
+      <div class="body"><h3>한라산</h3><div class="area">📍 제주 중앙</div>
+        <p>남한 최고봉. 체력에 맞춰 영실·어리목 등 코스를 골라 계절마다 다른 풍경을 만나요.</p>
+        <div class="tip">💡 탐방로별 통제·예약 여부를 미리 확인하세요.</div></div>
+    </article>
+    <article class="card" data-c="nature">
+      <div class="pic" style="background:linear-gradient(135deg,#ffd0e0,#ff8fb1)">🌺<small>자연·오름</small></div>
+      <div class="body"><h3>카멜리아힐</h3><div class="area">📍 서귀포시 안덕면</div>
+        <p>동백을 비롯한 정원이 가득한 수목원. 산책하며 친구와 사진 찍기 좋아요.</p>
+        <div class="tip">💡 동백 개화 시기에 맞춰 가면 더 예뻐요.</div></div>
+    </article>
+
+    <article class="card" data-c="cafe">
+      <div class="pic" style="background:linear-gradient(135deg,#d6f5d0,#6fcf8a)">🍵<small>카페·감성</small></div>
+      <div class="body"><h3>오설록 티뮤지엄</h3><div class="area">📍 서귀포시 안덕면</div>
+        <p>끝없이 펼쳐진 녹차밭을 보며 차와 디저트를 즐기는 제주 대표 감성 스폿이에요.</p>
+        <div class="tip">💡 녹차밭 산책 후 말차 디저트 한 입!</div></div>
+    </article>
+    <article class="card" data-c="cafe">
+      <div class="pic" style="background:linear-gradient(135deg,#ffe9c4,#f6b26b)">📸<small>카페·감성</small></div>
+      <div class="body"><h3>월정리 해변</h3><div class="area">📍 제주시 구좌읍</div>
+        <p>투명한 바다 앞에 아기자기한 카페와 가게가 모여 있어 걷기만 해도 즐거운 동네예요.</p>
+        <div class="tip">💡 바다 보이는 카페 자리를 먼저 잡고 구경하세요.</div></div>
+    </article>
+    <article class="card" data-c="cafe">
+      <div class="pic" style="background:linear-gradient(135deg,#e5dcff,#a995e8)">🌴<small>카페·감성</small></div>
+      <div class="body"><h3>섭지코지</h3><div class="area">📍 서귀포시 성산읍</div>
+        <p>바다 절벽과 초록 들판, 등대가 어우러진 산책로. 어디서 찍어도 엽서 같은 사진이 나와요.</p>
+        <div class="tip">💡 바람이 센 날이 많아 겉옷을 챙기세요.</div></div>
+    </article>
+
+    <article class="card" data-c="food">
+      <div class="pic" style="background:linear-gradient(135deg,#ffe0b0,#ff9f45)">🍊<small>먹거리</small></div>
+      <div class="body"><h3>동문시장</h3><div class="area">📍 제주시 일도동</div>
+        <p>길거리 간식, 해산물, 감귤 상품까지 구경하며 먹는 재미가 가득한 전통시장이에요.</p>
+        <div class="tip">💡 야시장 때 가면 먹거리가 더 다양해요.</div></div>
+    </article>
+    <article class="card" data-c="food">
+      <div class="pic" style="background:linear-gradient(135deg,#ffd4c4,#ff8a6b)">🥩<small>먹거리</small></div>
+      <div class="body"><h3>제주 흑돼지 한 판</h3><div class="area">📍 제주 전역</div>
+        <p>친구와 둘러앉아 구워 먹는 제주 대표 음식. 멜젓에 찍어 먹는 게 제주 스타일이에요.</p>
+        <div class="tip">💡 인기 식당은 대기가 길 수 있으니 미리 알아 두세요.</div></div>
+    </article>
+    <article class="card" data-c="food">
+      <div class="pic" style="background:linear-gradient(135deg,#d5f0ff,#6cc0e8)">🍜<small>먹거리</small></div>
+      <div class="body"><h3>고기국수 · 성게미역국</h3><div class="area">📍 제주 전역</div>
+        <p>진한 국물의 고기국수와 시원한 성게미역국은 여행 중 속 풀어 주는 제주 로컬 메뉴예요.</p>
+        <div class="tip">💡 아침 식사로도 든든해요.</div></div>
+    </article>
+  </div>
+</main>
+
+<section class="course">
+  <div class="wrap">
+    <h2>🗺️ 1박 2일 추천 코스</h2>
+    <p class="sub">동쪽·서쪽으로 나눠 이동 시간을 줄였어요</p>
+    <div class="days">
+      <div class="day"><h3>DAY 1 · 서쪽 감성 코스</h3>
+        <ol><li>동문시장에서 간식으로 시작</li><li>협재해수욕장 산책</li><li>애월 해안도로 드라이브 + 카페</li><li>흑돼지로 저녁</li></ol></div>
+      <div class="day"><h3>DAY 2 · 동쪽 자연 코스</h3>
+        <ol><li>성산일출봉 오르기</li><li>섭지코지 산책</li><li>월정리 해변 카페</li><li>고기국수로 마무리</li></ol></div>
+    </div>
+  </div>
+</section>
+
+<footer>💛 친구랑 함께 즐거운 제주 여행 되세요 · 운영 시간·요금·운항 정보는 방문 전 꼭 확인하세요</footer>
+
+<script>
+  const btns=document.querySelectorAll('#filters button'),cards=document.querySelectorAll('.card');
+  btns.forEach(b=>b.onclick=()=>{
+    btns.forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    cards.forEach(c=>c.classList.toggle('hide',b.dataset.f!=='all'&&c.dataset.c!==b.dataset.f));
+  });
+</script>
+</body>
+</html>
