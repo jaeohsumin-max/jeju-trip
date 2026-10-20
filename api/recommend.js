@@ -145,7 +145,9 @@ module.exports = async function handler(req, res) {
   // 5세대 모델은 기본으로 "생각하기"가 켜져 있어서, 생각에 토큰을 다 쓰면 max_tokens(600) 안에
   // 글이 하나도 안 나올 수 있어요. 그래서 생각을 최소로 줄여요.
   if (THINKING_MODELS.test(model)) payload.output_config = { effort: 'low' };
+  // 생각 끄는 방법이 모델마다 달라요: Haiku 5.x 는 disabled, Sonnet 5.5 는 disabled 가 400 이라서 between_tools
   if (/haiku-5/i.test(model)) payload.thinking = { type: 'disabled' };
+  else if (/sonnet-5-5/i.test(model)) payload.thinking = { type: 'between_tools' };
 
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
