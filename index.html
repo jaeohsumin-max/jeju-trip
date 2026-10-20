@@ -1,14 +1,180 @@
-안녕하세요감사합니다
-<html>
-    <style>
-        img{width: 200px;
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>제주 소소상점 | 제주를 담은 작은 소품샵</title>
+<style>
+  :root{--cream:#fffaf2;--ink:#3a2b22;--orange:#ff8a1f;--orange-d:#e56f00;--sea:#4fb8e8;--sea-l:#e6f6ff;--line:#f0e3d2}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--cream);color:var(--ink);line-height:1.65;word-break:keep-all;
+    font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+  a{color:inherit;text-decoration:none}
+  .wrap{width:min(1080px,92vw);margin:0 auto}
 
-        }
-        html
-        {
-            background-color: blue;
-        }
-        
-    </style>
-    <img src="a.png" alt="">
+  header{position:sticky;top:0;z-index:20;background:#fffaf2ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{font-weight:800;font-size:1.25rem}
+  .logo span{color:var(--orange)}
+  nav ul{display:flex;gap:22px;list-style:none;margin:0;padding:0;font-size:.95rem}
+  nav ul a:hover{color:var(--orange-d)}
+  .cart{background:var(--orange);color:#fff;border-radius:999px;padding:6px 16px;font-weight:700;font-size:.92rem}
+
+  .hero{position:relative;overflow:hidden;text-align:center;padding:84px 20px 120px;
+    background:linear-gradient(180deg,#ffe9c9 0%,#ffd7a1 55%,#ffc27a 100%)}
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:70px;
+    background:radial-gradient(60px 28px at 30px 70px,var(--cream) 98%,transparent) repeat-x;background-size:120px 70px}
+  .blob{position:absolute;border-radius:50%;opacity:.55}
+  .b1{width:220px;height:220px;background:#fff3c4;top:-60px;left:-50px}
+  .b2{width:150px;height:150px;background:#bfe6f7;right:8%;top:40px}
+  .b3{width:90px;height:90px;background:#ffb98a;left:14%;bottom:70px}
+  .hero .emoji{position:relative;font-size:3.4rem}
+  .hero h1{position:relative;margin:6px 0 10px;font-size:clamp(2.1rem,7vw,3.8rem);line-height:1.25}
+  .hero p{position:relative;max-width:520px;margin:0 auto 26px;font-size:clamp(1rem,2.3vw,1.18rem);color:#6a4a36}
+  .btn{position:relative;display:inline-block;background:var(--ink);color:#fff;padding:13px 30px;border-radius:999px;font-weight:700;
+    transition:transform .2s,background .2s}
+  .btn:hover{transform:translateY(-2px);background:var(--orange-d)}
+
+  section{padding:64px 0 10px}
+  h2{text-align:center;font-size:1.85rem;margin:0 0 6px}
+  .lead{text-align:center;color:#8a6a55;margin:0 0 30px}
+
+  .cats{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:26px}
+  .cats button{border:2px solid var(--orange);background:#fff;color:var(--orange-d);padding:7px 18px;border-radius:999px;
+    font-size:.98rem;font-weight:700;cursor:pointer;transition:.2s}
+  .cats button.on,.cats button:hover{background:var(--orange);color:#fff}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:20px}
+  .item{background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 8px 22px #8a5a2a1c;transition:transform .25s,box-shadow .25s}
+  .item:hover{transform:translateY(-6px);box-shadow:0 16px 32px #8a5a2a30}
+  .item.hide{display:none}
+  .pic{height:170px;display:flex;align-items:center;justify-content:center;font-size:4.6rem;position:relative}
+  .badge{position:absolute;left:12px;top:12px;background:#ffffffe0;font-size:.74rem;font-weight:800;padding:3px 10px;border-radius:999px;color:var(--orange-d)}
+  .info{padding:14px 16px 18px}
+  .info h3{margin:0;font-size:1.08rem}
+  .info p{margin:2px 0 10px;font-size:.88rem;color:#8a6a55}
+  .row{display:flex;align-items:center;justify-content:space-between}
+  .price{font-weight:800;color:var(--orange-d)}
+  .add{border:0;background:var(--sea-l);color:#1f6f9c;font-weight:700;padding:6px 14px;border-radius:999px;cursor:pointer;font-size:.88rem;transition:.2s}
+  .add:hover{background:var(--sea);color:#fff}
+
+  .story{margin-top:60px;padding:56px 0;background:linear-gradient(135deg,#fff1de,var(--sea-l))}
+  .story .two{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:center}
+  .story .pic2{aspect-ratio:4/3;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:5.4rem;
+    background:linear-gradient(135deg,#ffd9a0,#ff9f45);box-shadow:0 12px 30px #ff8a1f40}
+  .story h2{text-align:left}
+  .perks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:30px}
+  .perk{background:#fff;border-radius:18px;padding:18px;text-align:center;border:1px solid var(--line)}
+  .perk b{display:block;font-size:1.8rem}
+
+  .visit{text-align:center;padding:60px 0}
+  .visit .box{display:inline-block;background:#fff;border:2px dashed var(--orange);border-radius:22px;padding:22px 36px}
+  footer{text-align:center;padding:26px 16px;background:#3a2b22;color:#e8d8c6;font-size:.88rem}
+
+  .toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,40px);background:var(--ink);color:#fff;padding:10px 22px;border-radius:999px;
+    font-weight:700;opacity:0;transition:.3s;pointer-events:none;z-index:30}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @media(max-width:700px){
+    .story .two{grid-template-columns:1fr}
+    nav ul{display:none}
+    .hero{padding:64px 20px 100px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap"><nav>
+    <a class="logo" href="#top">🍊 제주 <span>소소상점</span></a>
+    <ul><li><a href="#shop">상품</a></li><li><a href="#story">이야기</a></li><li><a href="#visit">오시는 길</a></li></ul>
+    <span class="cart">🛍️ 장바구니 <b id="count">0</b></span>
+  </nav></div>
+</header>
+
+<div class="hero" id="top">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="emoji">🍊🌊🌺</div>
+  <h1>제주를 담은<br>작고 예쁜 것들</h1>
+  <p>귤빛 햇살, 푸른 바다, 동백꽃 한 송이. 여행의 기억을 오래 간직할 수 있는 제주 소품을 모았어요.</p>
+  <a class="btn" href="#shop">소품 구경하기</a>
+</div>
+
+<section id="shop"><div class="wrap">
+  <h2>이번 달 인기 소품</h2>
+  <p class="lead">마음에 드는 걸 담아 보세요</p>
+  <div class="cats" id="cats">
+    <button class="on" data-c="all">전체</button>
+    <button data-c="key">🔑 키링·잡화</button>
+    <button data-c="home">🕯️ 홈 소품</button>
+    <button data-c="paper">💌 문구·엽서</button>
+    <button data-c="bag">👜 가방·패션</button>
+  </div>
+  <div class="grid" id="grid">
+    <article class="item" data-c="key"><div class="pic" style="background:linear-gradient(135deg,#ffe0b0,#ffa94d)">🍊<span class="badge">BEST</span></div>
+      <div class="info"><h3>감귤 키링</h3><p>동글동글 귤 모양 아크릴 키링</p><div class="row"><span class="price">6,500원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="key"><div class="pic" style="background:linear-gradient(135deg,#e9e0d6,#b8a89a)">🗿<span class="badge">NEW</span></div>
+      <div class="info"><h3>돌하르방 마그넷</h3><p>냉장고에 붙이는 귀여운 돌하르방</p><div class="row"><span class="price">5,000원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="key"><div class="pic" style="background:linear-gradient(135deg,#ffd0e0,#ff8fb1)">🪞</div>
+      <div class="info"><h3>동백 손거울</h3><p>동백꽃이 그려진 휴대용 거울</p><div class="row"><span class="price">8,000원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="home"><div class="pic" style="background:linear-gradient(135deg,#fff0c4,#ffcf5c)">🕯️<span class="badge">BEST</span></div>
+      <div class="info"><h3>귤꽃 향초</h3><p>은은한 귤꽃 향이 나는 소이 캔들</p><div class="row"><span class="price">14,000원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="home"><div class="pic" style="background:linear-gradient(135deg,#d9d9de,#8f8f9a)">⚫</div>
+      <div class="info"><h3>현무암 컵받침</h3><p>제주 돌 질감을 닮은 코스터 2P</p><div class="row"><span class="price">9,000원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="home"><div class="pic" style="background:linear-gradient(135deg,#c9f1ff,#6cc0e8)">🐚</div>
+      <div class="info"><h3>바다 조개 트레이</h3><p>액세서리를 올려 두는 작은 접시</p><div class="row"><span class="price">12,000원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="paper"><div class="pic" style="background:linear-gradient(135deg,#d6f5d0,#7bd08c)">💌<span class="badge">NEW</span></div>
+      <div class="info"><h3>제주 풍경 엽서 세트</h3><p>오름·바다·돌담 엽서 6장</p><div class="row"><span class="price">7,500원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="paper"><div class="pic" style="background:linear-gradient(135deg,#e5dcff,#a995e8)">🏷️</div>
+      <div class="info"><h3>제주 스티커 팩</h3><p>귤·유채꽃·돌담 방수 스티커</p><div class="row"><span class="price">4,500원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="bag"><div class="pic" style="background:linear-gradient(135deg,#bfe6f7,#4fb8e8)">👜<span class="badge">BEST</span></div>
+      <div class="info"><h3>해녀 에코백</h3><p>튼튼한 캔버스 천, 바다 일러스트</p><div class="row"><span class="price">16,000원</span><button class="add">담기</button></div></div></article>
+    <article class="item" data-c="bag"><div class="pic" style="background:linear-gradient(135deg,#ffe9a8,#ffc83d)">🧢</div>
+      <div class="info"><h3>귤 자수 볼캡</h3><p>작은 귤이 수놓인 데일리 모자</p><div class="row"><span class="price">19,000원</span><button class="add">담기</button></div></div></article>
+  </div>
+</div></section>
+
+<section class="story" id="story"><div class="wrap">
+  <div class="two">
+    <div class="pic2">🏝️</div>
+    <div>
+      <h2>제주에서 한 땀 한 땀</h2>
+      <p class="lead" style="text-align:left;margin-bottom:12px">작은 가게가 전하는 이야기</p>
+      <p>제주 소소상점은 여행 중 만난 풍경을 일상에 가져오고 싶어서 시작했어요. 귤빛 햇살과 바다색, 돌담의 질감을 담은 소품을 하나하나 고르고 만듭니다.</p>
+      <p>선물로도, 나를 위한 작은 기념품으로도 좋아요.</p>
+    </div>
+  </div>
+  <div class="perks">
+    <div class="perk"><b>🎁</b>선물 포장 가능</div>
+    <div class="perk"><b>🚚</b>전국 택배 발송</div>
+    <div class="perk"><b>🌿</b>친환경 포장재</div>
+  </div>
+</div></section>
+
+<section class="visit" id="visit"><div class="wrap">
+  <h2>오시는 길</h2>
+  <p class="lead">구경하러 놀러 오세요</p>
+  <div class="box">
+    📍 제주시 ○○로 123 (실제 주소로 바꿔 주세요)<br>
+    🕙 매일 10:00 – 19:00 · 📞 064-000-0000
+  </div>
+</div></section>
+
+<footer>© 제주 소소상점 · 상품 이름과 가격은 예시입니다</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+  const cats=document.querySelectorAll('#cats button'),items=document.querySelectorAll('.item');
+  cats.forEach(b=>b.onclick=()=>{
+    cats.forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    items.forEach(i=>i.classList.toggle('hide',b.dataset.c!=='all'&&i.dataset.c!==b.dataset.c));
+  });
+  let n=0;const count=document.getElementById('count'),toast=document.getElementById('toast');let t;
+  document.querySelectorAll('.add').forEach(b=>b.onclick=()=>{
+    n++;count.textContent=n;
+    toast.textContent='🍊 '+b.closest('.info').querySelector('h3').textContent+' 담았어요!';
+    toast.classList.add('show');clearTimeout(t);t=setTimeout(()=>toast.classList.remove('show'),1400);
+  });
+</script>
+</body>
 </html>
