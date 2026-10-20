@@ -30,6 +30,13 @@
   .back img{width:40px;height:40px;display:block;border-radius:12px}
   .back:active{background:#ffffff40}
   .back:focus-visible{outline:3px solid #3A2B22;outline-offset:2px}
+  /* 오른쪽 '내 취향' 링크 (누르면 profile.html) */
+  .pref{position:absolute;right:8px;top:calc(50% + 6px);transform:translateY(-50%);display:flex;align-items:center;justify-content:center;
+    min-width:60px;min-height:48px;padding:0 10px;border-radius:14px;color:#3A2B22;font-size:1rem;font-weight:700;
+    text-decoration:none;background:#ffffff59;-webkit-tap-highlight-color:transparent}
+  .pref:active{background:#ffffff99}
+  .pref:focus-visible{outline:3px solid #3A2B22;outline-offset:2px}
+  @media(max-width:340px){.pref{min-width:48px;padding:0 6px}}
   @media(max-width:340px){.back .arrow{display:none}}
   .sun{display:inline-block;margin-left:4px;transform-origin:50% 50%;animation:sway 2.4s ease-in-out infinite}
   @keyframes sway{0%,100%{transform:rotate(-10deg) scale(1)}50%{transform:rotate(10deg) scale(1.12)}}
@@ -94,6 +101,7 @@
       <img src="images/logo.svg" alt="" width="40" height="40">
     </a>
     <h1>오름 길잡이 <span class="sun" aria-hidden="true">🌞</span></h1>
+    <a class="pref" href="profile.html" aria-label="내 여행 취향 정하기">내 취향</a>
   </header>
 
   <details class="about">

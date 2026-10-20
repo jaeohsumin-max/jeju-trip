@@ -43,6 +43,9 @@
   .hero{background:var(--point);text-align:center;padding:44px 0 56px;border-bottom:6px solid var(--main)}
   .logo{width:132px;height:132px;display:block;margin:0 auto 10px}
   .hero h1{font-size:clamp(2.2rem,9vw,3.4rem)}
+  .sublink{display:flex;align-items:center;justify-content:center;width:max-content;min-height:48px;margin:14px auto 0;padding:0 8px;
+    color:var(--ink);font-size:1.1rem;text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px;text-decoration-color:var(--main)}
+  .sublink:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:8px}
   .hero h1 span{background:linear-gradient(transparent 62%,var(--main) 62% 92%,transparent 92%);padding:0 4px}
   .promise{max-width:520px;margin:16px auto 26px;font-size:clamp(1.15rem,4.4vw,1.4rem)}
 
@@ -82,6 +85,7 @@
     <h1><span>제주 오름이</span></h1>
     <p class="promise">제주 여행하는 사람들에게 오름에 대해 궁금한 것을 제대로 답해 주는 AI</p>
     <a class="btn" href="agent.html">지금 물어보기</a>
+    <a class="sublink" href="profile.html">내 여행 취향 알려 주기</a>
   </div>
 </header>
 
