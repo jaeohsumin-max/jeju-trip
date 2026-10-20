@@ -61,7 +61,11 @@
 
   /* 2) 대화 영역: 왼쪽 에이전트 말풍선, 오른쪽 사용자 말풍선 */
   main{flex:1;overflow-y:auto;padding:22px 16px 12px;display:flex;flex-direction:column;gap:18px;background:#fffaf4}
-  .msg{max-width:78%;padding:14px 16px;border-radius:20px;font-size:1.1rem;line-height:1.5}
+  .msg{max-width:78%;padding:14px 16px;border-radius:20px;font-size:1.1rem;line-height:1.5;white-space:pre-line;overflow-wrap:anywhere}
+  /* 연습 모드 표시 + 말풍선 */
+  .botwrap{align-self:flex-start;max-width:78%;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+  .botwrap .msg{max-width:100%}
+  .mode-tag{padding:2px 12px;border-radius:999px;background:var(--line);color:#6b5444;font-size:1rem;line-height:1.4;font-weight:700}
   .bot{align-self:flex-start;background:var(--orange-l);border:2px solid var(--line);border-bottom-left-radius:6px}
   .me{align-self:flex-end;background:var(--orange);color:#fff;border-bottom-right-radius:6px}
 
@@ -135,33 +139,78 @@
     <input id="text" type="text" placeholder="메세지 입력" aria-label="메세지 입력">
     <button type="submit">보내기</button>
   </form>
-  <p class="note">※ 연습용 가짜 답변이에요. 진짜 답변은 아직 연결되지 않았어요.</p>
+  <p class="note">AI 추천 · 방문 전 확인하세요</p>
 </div>
 
 <script>
   const chat=document.getElementById('chat'),text=document.getElementById('text');
+  const PROFILE_KEY='jeju-oreum-profile';   // profile.html 이 이 기기에 저장하는 곳
+  function scrollDown(){chat.scrollTop=chat.scrollHeight}
   function add(cls,t){
     const d=document.createElement('div');d.className='msg '+cls;d.textContent=t;
-    chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
+    chat.appendChild(d);scrollDown();
   }
-  // 가짜 답변 3개를 차례로 돌려 씁니다 (진짜 AI 아님)
-  const replies=[
+  // 에이전트 말풍선 (연습 모드면 말풍선 위에 작은 '연습 모드' 표시)
+  function addBot(t,practice){
+    const wrap=document.createElement('div');wrap.className='botwrap';
+    if(practice){const tag=document.createElement('span');tag.className='mode-tag';tag.textContent='연습 모드';wrap.appendChild(tag)}
+    const d=document.createElement('div');d.className='msg bot';d.textContent=t;
+    wrap.appendChild(d);chat.appendChild(wrap);scrollDown();
+  }
+
+  // 2일차 가짜 답변 3개: 연습 모드이거나 호출이 실패했을 때만 차례로 돌려 써요 (진짜 AI 아님)
+  const fakeReplies=[
     '안녕하세요! 저는 오름 길잡이예요 🌞 오늘 어느 오름에 가 보고 싶으세요? 걷는 시간이나 날씨를 알려 주시면 맞춰서 알려 드릴게요.',
     '부모님과 함께라면 오르는 길이 완만한 오름이 좋아요. 예를 들어 새별오름은 정상까지 가볍게 오를 수 있는 오름으로 알려져 있어요.',
     '아직 공부 중이에요! 5일차에 진짜로 알아볼게요.'
   ];
-  let n=0;
-  function send(t){
-    t=t.trim();if(!t)return;
+  let fakeN=0;
+
+  // 보낼 취향: 이 기기에 저장된 값 → 없으면 my_profile.json → 그래도 없으면 빈 취향
+  function cleanProfile(d){
+    const o=d&&typeof d==='object'?d:{};
+    return {style:Array.isArray(o.style)?o.style.filter(x=>typeof x==='string'):[],
+            pace:typeof o.pace==='string'?o.pace:'',with:typeof o.with==='string'?o.with:''};
+  }
+  const hasAny=p=>p.style.length>0||!!p.pace||!!p.with;
+  async function getProfile(){
+    try{const raw=localStorage.getItem(PROFILE_KEY);if(raw){const p=cleanProfile(JSON.parse(raw));if(hasAny(p))return p}}catch(e){}
+    try{const r=await fetch('my_profile.json',{cache:'no-store'});if(r.ok){const p=cleanProfile(await r.json());if(hasAny(p))return p}}catch(e){}
+    return {style:[],pace:'',with:''};
+  }
+
+  // /api/recommend 호출. 진짜 답이면 {text}, 연습 모드·실패면 {practice:true}
+  async function ask(question){
+    const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),30000);
+    try{
+      const profile=await getProfile();
+      const r=await fetch('/api/recommend',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({question:question.slice(0,300),profile}),signal:ctl.signal});
+      if(!r.ok)return {practice:true};
+      const d=await r.json();
+      if(d&&d.mode==='claude'&&typeof d.text==='string'&&d.text.trim())return {text:d.text.trim()};
+      return {practice:true};
+    }catch(e){return {practice:true}}
+    finally{clearTimeout(timer)}
+  }
+
+  let busy=false;
+  async function send(t){
+    t=t.trim();if(!t||busy)return;
+    busy=true;
     add('me',t);
-    const r=replies[n%replies.length];n++;
-    // 답을 기다리는 1초 동안 왼쪽에 "..." 표시
+    // 답을 기다리는 동안 왼쪽에 "..." 표시 (너무 빨리 사라지지 않게 최소 1초)
     const dots=document.createElement('div');dots.className='msg bot typing';dots.setAttribute('aria-label','답변 작성 중');
     dots.innerHTML='<span></span><span></span><span></span>';
-    chat.appendChild(dots);chat.scrollTop=chat.scrollHeight;
-    setTimeout(()=>{dots.remove();add('bot',r)},1000);
+    chat.appendChild(dots);scrollDown();
+    try{
+      const [res]=await Promise.all([ask(t),new Promise(r=>setTimeout(r,1000))]);
+      dots.remove();
+      if(res.practice){addBot(fakeReplies[fakeN%fakeReplies.length],true);fakeN++}
+      else addBot(res.text,false);
+    }finally{busy=false}
   }
-  document.getElementById('form').onsubmit=e=>{e.preventDefault();send(text.value);text.value=''};
+  document.getElementById('form').onsubmit=e=>{e.preventDefault();if(busy)return;const v=text.value;if(!v.trim())return;text.value='';send(v)};
   document.getElementById('chips').onclick=e=>{if(e.target.tagName==='BUTTON')send(e.target.textContent)};
 </script>
 </body>
