@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>로고 PNG 만들기 | 제주 오름이</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<style>
+  :root{--main:#FF8A1F;--point:#FFF1E0;--bg:#FFFFFF;--ink:#3A2B22;--ink-soft:#6B5444}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Jua","Malgun Gothic",sans-serif;font-size:1.1rem;line-height:1.6;
+    padding:24px 16px 48px;word-break:keep-all}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:1.7rem}
+  .sub{margin:0 0 20px;color:var(--ink-soft)}
+  .box{background:var(--point);border-radius:20px;padding:16px;margin-bottom:18px}
+  .box h2{margin:0 0 4px;font-size:1.25rem}
+  .box p{margin:0 0 12px;color:var(--ink-soft)}
+  canvas{display:block;max-width:100%;height:auto;background:var(--bg);border:3px solid var(--ink);border-radius:12px;margin-bottom:12px}
+  #icon{width:180px}
+  .btn{min-height:52px;padding:0 24px;border-radius:999px;border:3px solid var(--ink);background:var(--main);color:var(--ink);
+    font-family:inherit;font-size:1.15rem;cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+  #status{margin:6px 0 18px;font-size:1rem;min-height:1.6em}
+  #status.err{color:#B00020}
+  .tip{font-size:1rem;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>로고 PNG 만들기</h1>
+  <p class="sub"><code>images/logo.svg</code>를 불러와 공유용 그림과 홈 화면 아이콘을 만들어요.</p>
+  <p id="status">불러오는 중이에요…</p>
+
+  <div class="box">
+    <h2>① 공유용 그림 · og.png (1200×630)</h2>
+    <p>배경 흰색, 가운데에 로고 · 이름 · 한 줄 약속</p>
+    <canvas id="og" width="1200" height="630"></canvas>
+    <button class="btn" id="dl-og" disabled>og.png 내려받기</button>
+  </div>
+
+  <div class="box">
+    <h2>② 홈 화면 아이콘 · icon-180.png (180×180)</h2>
+    <p>흰 바탕에 로고를 가득 채웠어요</p>
+    <canvas id="icon" width="180" height="180"></canvas>
+    <button class="btn" id="dl-icon" disabled>icon-180.png 내려받기</button>
+  </div>
+
+  <p class="tip">내려받은 파일은 <b>images</b> 폴더에 넣어 주세요. 이 화면은 파일을 직접 열지 말고 웹 주소(배포 주소나 <code>localhost</code>)로 열어야 내려받을 수 있어요.</p>
+</div>
+
+<script>
+  const NAME='제주 오름이';
+  const PROMISE='제주 여행하는 사람들에게 오름에 대해 궁금한 것을 제대로 답해 주는 AI';
+  const C={main:'#FF8A1F',point:'#FFF1E0',bg:'#FFFFFF',ink:'#3A2B22'};
+  const FONT='Jua, "Malgun Gothic", sans-serif';
+  const statusEl=document.getElementById('status');
+  const say=(t,err)=>{statusEl.textContent=t;statusEl.className=err?'err':''};
+
+  function loadLogo(){
+    return new Promise((res,rej)=>{
+      const img=new Image();
+      img.onload=()=>res(img);
+      img.onerror=()=>rej(new Error('images/logo.svg 를 불러오지 못했어요'));
+      img.src='../images/logo.svg';
+    });
+  }
+
+  // 글자를 maxWidth 안에서 줄바꿈 (한글은 띄어쓰기 단위)
+  function wrap(ctx,text,maxW){
+    const words=text.split(' '),lines=[];let cur='';
+    for(const w of words){
+      const t=cur?cur+' '+w:w;
+      if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w}else cur=t;
+    }
+    if(cur)lines.push(cur);return lines;
+  }
+
+  function drawOg(logo){
+    const cv=document.getElementById('og'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+    ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+    // 아래쪽 주황 띠 (색 토큰)
+    ctx.fillStyle=C.main;ctx.fillRect(0,H-18,W,18);
+    const S=230;ctx.drawImage(logo,(W-S)/2,38,S,S);
+    ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillStyle=C.ink;ctx.font='92px '+FONT;ctx.fillText(NAME,W/2,375);
+    // 이름 밑줄 강조 (보조색)
+    const nw=ctx.measureText(NAME).width;
+    ctx.fillStyle=C.main;ctx.fillRect(W/2-nw/2,388,nw,10);
+    ctx.fillStyle=C.ink;ctx.font='38px '+FONT;
+    // 줄 수는 그대로 두고 폭을 줄여서, 마지막 줄에 한 글자만 남지 않게 고르게 나눠요
+    let maxW=980;const n=wrap(ctx,PROMISE,maxW).length;
+    while(maxW>300&&wrap(ctx,PROMISE,maxW-10).length===n)maxW-=10;
+    const lines=wrap(ctx,PROMISE,maxW);
+    lines.forEach((l,i)=>ctx.fillText(l,W/2,462+i*54));
+  }
+
+  function drawIcon(logo){
+    const cv=document.getElementById('icon'),ctx=cv.getContext('2d');
+    ctx.fillStyle=C.bg;ctx.fillRect(0,0,180,180);   // 투명 없이 꽉 찬 정사각형
+    ctx.drawImage(logo,0,0,180,180);
+  }
+
+  function download(canvas,filename,btn){
+    canvas.toBlob(blob=>{
+      if(!blob){say('이미지를 만들지 못했어요. 파일을 직접 열었다면 웹 주소로 열어 주세요.',true);return}
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      say(filename+' 을(를) 내려받았어요. images 폴더에 넣어 주세요.');
+    },'image/png');
+  }
+
+  (async()=>{
+    try{
+      await Promise.all([document.fonts.load('92px Jua'),document.fonts.load('38px Jua')]).catch(()=>{});
+      const logo=await loadLogo();
+      drawOg(logo);drawIcon(logo);
+      // 파일로 직접 열면 캔버스가 막혀서 내려받기가 안 돼요 — 미리 확인
+      try{document.getElementById('icon').toDataURL()}
+      catch(e){say('이 화면을 파일로 직접 열었어요. 웹 주소(localhost 또는 배포 주소)로 열어야 내려받을 수 있어요.',true);return}
+      document.getElementById('dl-og').disabled=false;
+      document.getElementById('dl-icon').disabled=false;
+      say('준비됐어요! 아래 버튼을 눌러 내려받으세요.');
+    }catch(e){say(e.message,true)}
+  })();
+
+  document.getElementById('dl-og').onclick=e=>download(document.getElementById('og'),'og.png',e.target);
+  document.getElementById('dl-icon').onclick=e=>download(document.getElementById('icon'),'icon-180.png',e.target);
+</script>
+</body>
+</html>
