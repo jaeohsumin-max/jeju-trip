@@ -9,6 +9,8 @@ const MAX_TOKENS = 600;
 const TIMEOUT_MS = 20000;
 const CHECK_LINE = '방문 전 운영 여부를 확인하세요.';
 const RETRY_MSG = '잠시 후 다시 시도해 주세요.';
+// output_config.effort 를 받는 5세대 모델 (그 밖의 모델에는 보내지 않아요)
+const THINKING_MODELS = /(haiku|sonnet|opus|fable|mythos)-5/i;
 
 // 취향 값은 화면에 있는 선택지만 받아요 (그 밖의 글은 버려요)
 const STYLES = ['바다', '숲', '오름', '시장', '박물관'];
@@ -33,6 +35,15 @@ const SYSTEM = [
   '3. 장소 이름 · 한 줄 이유',
   CHECK_LINE,
 ].join('\n');
+
+// 로그에 남겨도 되는 이유만 골라요: 시간 초과 / upstream 상태 번호 / 빈 답의 이유(stop·블록 종류)
+function safeReason(e) {
+  if (e && e.name === 'AbortError') return 'timeout';
+  const m = String((e && e.message) || '');
+  if (/^upstream \d{3}$/.test(m)) return m;
+  if (/^empty stop=[\w?]{1,20} blocks=[\w,?]{1,60}$/.test(m)) return m;
+  return 'error';
+}
 
 function send(res, status, body) {
   res.status(status).setHeader('Cache-Control', 'no-store');
@@ -124,10 +135,22 @@ module.exports = async function handler(req, res) {
   }
 
   // 3) Claude 에게 묻기
+  const model = process.env.CLAUDE_MODEL || DEFAULT_MODEL;
+  const payload = {
+    model,
+    max_tokens: MAX_TOKENS,
+    system: SYSTEM,
+    messages: [{ role: 'user', content: buildUserMessage(profile, question) }],
+  };
+  // 5세대 모델은 기본으로 "생각하기"가 켜져 있어서, 생각에 토큰을 다 쓰면 max_tokens(600) 안에
+  // 글이 하나도 안 나올 수 있어요. 그래서 생각을 최소로 줄여요.
+  if (THINKING_MODELS.test(model)) payload.output_config = { effort: 'low' };
+  if (/haiku-5/i.test(model)) payload.thinking = { type: 'disabled' };
+
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
-  try {
-    const r = await fetch(API_URL, {
+  const call = (body) =>
+    fetch(API_URL, {
       method: 'POST',
       signal: ctl.signal,
       headers: {
@@ -135,25 +158,34 @@ module.exports = async function handler(req, res) {
         'x-api-key': key,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL || DEFAULT_MODEL,
-        max_tokens: MAX_TOKENS,
-        system: SYSTEM,
-        messages: [{ role: 'user', content: buildUserMessage(profile, question) }],
-      }),
+      body: JSON.stringify(body),
     });
+  try {
+    let r = await call(payload);
+    // 모델이 "생각 끄기"를 받아들이지 않으면(400), 그 항목만 빼고 한 번만 다시 물어요
+    if (r.status === 400 && payload.thinking) {
+      delete payload.thinking;
+      r = await call(payload);
+    }
     if (!r.ok) throw new Error('upstream ' + r.status); // 자세한 내용은 읽지도, 남기지도 않아요
     const data = await r.json();
-    const text = (Array.isArray(data.content) ? data.content : [])
+    const blocks = Array.isArray(data.content) ? data.content : [];
+    const text = blocks
       .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
       .map((b) => b.text)
       .join('\n')
       .trim();
-    if (!text) throw new Error('empty');
+    if (!text) {
+      // 왜 비었는지만 남겨요: 끝난 이유와 블록 종류 (글 내용·열쇠 없음)
+      const why = String(data.stop_reason || '?').slice(0, 20);
+      const kinds = blocks.map((b) => String((b && b.type) || '?').slice(0, 20)).join(',').slice(0, 60);
+      throw new Error('empty stop=' + why + ' blocks=' + (kinds || 'none'));
+    }
     return send(res, 200, { mode: 'claude', text: finish(text) });
   } catch (e) {
-    // 로그에는 짧은 이유만 남기고 (열쇠·응답 본문 없음), 사용자에게는 같은 안내만 돌려줘요
-    console.error('recommend failed:', e && e.name === 'AbortError' ? 'timeout' : String((e && e.message) || 'error').slice(0, 40));
+    // 로그에는 "내가 직접 만든 짧은 이유"만 남겨요. 그 밖의 오류 문구는 열쇠 같은 값이
+    // 섞여 있을 수 있어서 그대로 남기지 않고, 사용자에게는 같은 안내만 돌려줘요.
+    console.error('recommend failed:', safeReason(e));
     return send(res, 502, { error: RETRY_MSG });
   } finally {
     clearTimeout(timer);
