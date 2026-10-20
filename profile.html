@@ -66,6 +66,7 @@
   #msg{min-height:1.8em;margin:10px 0 0;font-size:1.15rem}
   #msg.ok{color:var(--ink)}
   #msg.err{color:#8A1C1C}
+  #msg .sub{display:block;font-size:1rem;color:var(--ink-soft)}
   .note{margin:6px 0 0;color:var(--ink-soft);font-size:1rem}
 </style>
 </head>
@@ -121,7 +122,7 @@
   <div class="save-bar">
     <button class="save" id="save" type="button">저장</button>
     <p id="msg" role="status" aria-live="polite"></p>
-    <p class="note">이 기기(이 브라우저)에만 저장돼요. 이름이나 전화번호는 받지 않아요.</p>
+    <p class="note">이 기기(이 브라우저)에만 저장되고, my_profile.json 파일로도 내려받아요. 이름이나 전화번호는 받지 않아요.</p>
   </div>
 </div>
 
@@ -173,15 +174,29 @@
       fill({style:Array.isArray(d.style)?d.style:[],pace:typeof d.pace==='string'?d.pace:'',with:typeof d.with==='string'?d.with:''});
     }catch(e){/* 저장소를 못 읽으면 빈 상태로 시작 */}
   }
-  function say(t,cls){msg.textContent=t;msg.className=cls||''}
+  function say(t,cls,sub){
+    msg.textContent=t;msg.className=cls||'';
+    if(sub){const s=document.createElement('span');s.className='sub';s.textContent=sub;msg.appendChild(s)}
+  }
+
+  // my_profile.json 파일로 내 기기에 내려받기 (서버로는 보내지 않아요)
+  function downloadJson(data){
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='my_profile.json';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
 
   document.getElementById('save').addEventListener('click',()=>{
-    try{
-      localStorage.setItem(KEY,JSON.stringify(read()));
-      say('저장했어요','ok');
-    }catch(e){
-      say('이 브라우저에서는 저장할 수 없어요. 시크릿 창이거나 저장이 막혀 있을 수 있어요.','err');
-    }
+    const data=read();
+    let stored=true,filed=true;
+    try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){stored=false}
+    try{downloadJson(data)}catch(e){filed=false}
+    if(stored&&filed)say('저장했어요','ok','my_profile.json 파일도 내 기기에 내려받았어요.');
+    else if(stored)say('저장했어요','ok','파일은 내려받지 못했어요.');
+    else if(filed)say('파일로만 저장했어요','ok','이 브라우저에는 저장할 수 없어서, 다시 열면 선택이 비어 있어요.');
+    else say('저장하지 못했어요','err','시크릿 창이거나 저장이 막혀 있을 수 있어요.');
   });
   // 값을 바꾸면 "저장했어요" 문구는 지워요 (아직 저장 전이니까요)
   document.addEventListener('change',e=>{if(e.target.matches('input')){say('');updateMarks()}});
