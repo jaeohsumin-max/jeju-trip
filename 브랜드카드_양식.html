@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>브랜드 카드 · 짝꿍 리뷰 카드</title>
+<style>
+@page{size:A4;margin:12mm}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;color:#1F2A44;background:#EEF1F6}
+.page{width:186mm;margin:8mm auto;background:#fff;padding:9mm 10mm;border-radius:4mm;page-break-after:always}.page:last-child{page-break-after:auto}
+h1{font-size:20pt;margin:0 0 1mm}
+.sub{font-size:10pt;color:#5B6680;margin-bottom:5mm}
+.row{display:grid;grid-template-columns:30mm 1fr;gap:3mm;align-items:start;border-top:1px solid #E2E7F0;padding:3.2mm 0}
+.row b{font-size:12pt}
+.row .hint{font-size:9pt;color:#7A869C;margin-top:1mm}
+.line{border-bottom:1.5px solid #9AA6BF;height:8mm}
+.box{border:1.5px dashed #9AA6BF;border-radius:3mm;height:30mm;display:flex;align-items:center;justify-content:center;color:#9AA6BF;font-size:10pt}
+.chips span{display:inline-block;border:1.5px solid #9AA6BF;border-radius:99px;padding:1mm 3.5mm;margin:0 1.5mm 1.5mm 0;font-size:10pt}
+.sw{display:flex;gap:4mm}
+.sw div{flex:1;border:1.5px solid #9AA6BF;border-radius:3mm;padding:2mm;font-size:10pt}
+.sw i{display:block;height:13mm;border-radius:2mm;background:repeating-linear-gradient(45deg,#F2F4F8 0 6px,#fff 6px 12px);margin-bottom:1.5mm}
+.cut{border-top:2px dashed #C5CEDD;margin:7mm 0 5mm;position:relative}
+.cut::after{content:"✂ 자르는 선";position:absolute;top:-9px;left:0;background:#fff;padding-right:6px;font-size:9pt;color:#9AA6BF}
+.rv .row{grid-template-columns:44mm 1fr}
+.foot{font-size:9pt;color:#5B6680;margin-top:4mm;line-height:1.5}
+@media print{body{background:#fff}.page{margin:0 auto;padding:0}}
+@media (max-width:760px){.page{width:auto;margin:16px;padding:16px}.row,.rv .row{grid-template-columns:1fr}.sw{flex-direction:column}}
+</style></head><body>
+<div class="page">
+ <h1>브랜드 카드</h1>
+ <div class="sub">3일차 1 · 2교시 · 다 채우면 Claude 에게 brand.md 로 저장하게 합니다</div>
+ <div class="row"><b>이름</b><div><div class="line"></div><div class="hint">기억하기 쉽게 · 6글자 이내 · 실제 회사 · 단체 · 상표와 겹치지 않게</div></div></div>
+ <div class="row"><b>한 줄 약속</b><div><div class="line"></div><div class="hint">(누구)에게 (무엇)을 해 주는 AI — 랜딩페이지 맨 위에 들어갑니다</div></div></div>
+ <div class="row"><b>말투</b><div>
+   <div class="chips"><span>□ 존댓말</span><span>□ 반말</span><span>답 길이 ___ 문장 이내</span></div>
+   <div class="line"></div><div class="hint">자주 쓰는 말</div>
+   <div class="line"></div><div class="hint">절대 하지 않는 말</div>
+   <div class="line"></div><div class="hint">모를 때 하는 말 (예: “그건 아직 확인하지 못했어요”) — 4일차 시스템 프롬프트가 됩니다</div></div></div>
+ <div class="row"><b>색 토큰</b><div class="sw">
+   <div><i></i>--main 주색<br>#______</div><div><i></i>--point 보조색<br>#______</div><div><i></i>--bg 배경<br>#______</div></div></div>
+ <div class="row"><b>글꼴</b><div><div class="line"></div><div class="hint">무료로 써도 되는 글꼴만 (예: Pretendard · Noto Sans KR)</div></div></div>
+ <div class="row"><b>로고 스케치</b><div><div class="box">도형 1~2개 + 이름 · 작게 줄여도 알아보이게</div><div class="hint">유명 브랜드 · 단체 로고, 기존 캐릭터와 비슷하지 않게</div></div></div>
+
+</div>
+<div class="page rv">
+ <h1>짝꿍 리뷰 카드</h1>
+ <div class="sub">3일차 8교시 · 짝꿍의 배포 주소를 휴대폰으로 열고 사용자 눈으로</div>
+ <div class="row"><b>리뷰한 주소</b><div class="line"></div></div>
+ <div class="row"><b>① 10초 첫인상</b><div><div class="line"></div><div class="hint">“이건 ______ 하는 AI 같아요”</div></div></div>
+ <div class="row"><b>② 좋은 점 1</b><div class="line"></div></div>
+ <div class="row"><b>③ 헷갈린 점 1</b><div class="line"></div></div>
+ <div class="row"><b>④ 하나만 고친다면?</b><div class="line"></div></div>
+ <div class="foot">짧고 구체적으로. 받은 사람은 하나만 골라 오늘 안에 고치고 다시 배포합니다.</div>
+</div>
+</body></html>
