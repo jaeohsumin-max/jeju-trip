@@ -188,7 +188,7 @@
         body:JSON.stringify({question:question.slice(0,300),profile}),signal:ctl.signal});
       if(!r.ok)return {practice:true};
       const d=await r.json();
-      if(d&&d.mode==='claude'&&typeof d.text==='string'&&d.text.trim())return {text:d.text.trim()};
+      if(d&&d.mode==='live'&&typeof d.text==='string'&&d.text.trim())return {text:d.text.trim()};
       return {practice:true};
     }catch(e){return {practice:true}}
     finally{clearTimeout(timer)}
