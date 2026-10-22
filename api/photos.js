@@ -121,7 +121,8 @@ module.exports = async (req, res) => {
     plan = TOPICS[topic];
   }
 
-  const key = process.env.PIXABAY_API_KEY;
+  // 환경변수 이름은 PIXABAY_API_KEY 가 기본이고, Vercel 에 PIXABAY 로 등록돼 있어도 같이 읽어요
+  const key = process.env.PIXABAY_API_KEY || process.env.PIXABAY;
   if (!key) {
     // 원인을 찾기 쉽게: 이 서버가 어느 환경(production/preview)에서 어느 커밋으로 도는지, 이름에 pixabay 가 들어간
     // 환경변수가 있는지(이름과 '값 있음/비어 있음'만, 값은 절대 아님)를 함께 알려 줘요
