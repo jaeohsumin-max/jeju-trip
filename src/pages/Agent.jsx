@@ -44,11 +44,11 @@ const ABOUT = [
   '제주도에는 368개에 달하는 오름이 알려져 있어요.',
   '오름은 대부분 현무암질 스코리아로 만들어진 분석구예요.',
 ];
-const CHIPS = ['현재 오름 날씨', '비 와도 괜찮은 오름', '시간 추천'];
+const CHIPS = ['오늘 제주 날씨', '비 와도 괜찮은 곳', '반나절 코스 추천'];
 
 // 2일차 가짜 답변 3개: 연습 모드이거나 호출이 실패했을 때만 차례로 돌려 써요 (진짜 AI 아님)
 const FAKE_REPLIES = [
-  '안녕하세요! 저는 오름 길잡이예요 🌞 오늘 어느 오름에 가 보고 싶으세요? 걷는 시간이나 날씨를 알려 주시면 맞춰서 알려 드릴게요.',
+  '안녕하세요! 저는 제주 길잡이예요 🌞 오늘 제주 어디에 가 보고 싶으세요? 걷는 시간이나 날씨를 알려 주시면 맞춰서 알려 드릴게요.',
   '부모님과 함께라면 오르는 길이 완만한 오름이 좋아요. 예를 들어 새별오름은 정상까지 가볍게 오를 수 있는 오름으로 알려져 있어요.',
   '아직 공부 중이에요! 5일차에 진짜로 알아볼게요.',
 ];
@@ -326,10 +326,9 @@ function Bot({ m }) {
 }
 
 export default function Agent() {
-  useTitle('오름 길잡이');
+  useTitle('제주 길잡이');
   const [messages, setMessages] = useState([
-    { id: 1, who: 'bot', text: '안녕하세요! 어떤 오름이 궁금해요?' },
-    { id: 2, who: 'me', text: '50대 부모님이 가기 좋은 곳' },
+    { id: 1, who: 'bot', text: '안녕하세요! 제주에 대해 무엇이 궁금하세요?' },
   ]);
   const [typing, setTyping] = useState(false);
   const [photosOpen, setPhotosOpen] = useState(false); // 제주 사진 화면
@@ -386,7 +385,7 @@ export default function Agent() {
             <span className="arrow" aria-hidden="true">‹</span>
             <img src="/images/logo.svg" alt="" width="40" height="40" />
           </Link>
-          <h1>오름 길잡이 <span className="sun" aria-hidden="true">🌞</span></h1>
+          <h1>제주 길잡이 <span className="sun" aria-hidden="true">🌞</span></h1>
           <Link className="pref" to="/profile" aria-label="내 여행 취향 정하기">내 취향</Link>
         </header>
 
