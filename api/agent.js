@@ -9,7 +9,8 @@
 //   text, itinerary                                                      // 지금 화면(일정 카드·지도)이 쓰는 값
 // }
 // 모델(Gemini)이 api/tools.js 의 도구(find_spots, get_weather, plan_route)를 골라 쓰고, 서버가 실행해 결과를 돌려줘요.
-// 도구 요청은 최대 5번. 열쇠는 환경 변수 CONSOLE(새 열쇠) → GEMINI_API_KEY(기존 열쇠) 순서로 읽고, 코드와 응답·로그에는 절대 넣지 않아요.
+// 도구 요청은 최대 5번. 열쇠는 환경 변수 CONSOLE(Claude 열쇠) → GEMINI_API_KEY(Gemini 열쇠) 순서로 읽고, 코드와 응답·로그에는 절대 넣지 않아요.
+// (앞 열쇠가 한도 초과·거절이면 뒤 열쇠로 처음부터 다시 하고, 모두 안 되면 규칙 기반 답으로 대신해요)
 // 열쇠가 없으면 연습 모드: find_spots → get_weather → 규칙 판단 순서로 같은 모양의 결과를 만들어요.
 
 const tools = require('./tools.js');
@@ -144,9 +145,24 @@ const scrub = (s, key) => (key ? String(s).split(key).join('[key]') : String(s))
 
 // 열쇠가 들어 있는 환경변수 이름 (앞에 있는 것부터 써 봐요): 새로 올린 CONSOLE → 기존 GEMINI_API_KEY
 // 앞의 열쇠가 한도 초과·거절(400/401/403/429)되면 다음 열쇠로 넘어가요.
+// 열쇠가 sk-ant- 로 시작하면 Claude Console 에서 받은 Claude 열쇠(CONSOLE), 아니면 Gemini 열쇠로 봐요.
 const KEY_VARS = ['CONSOLE', 'GEMINI_API_KEY'];
 function getKeys() {
-  return KEY_VARS.map((name) => ({ name, value: String(process.env[name] || '').trim() })).filter((k) => k.value);
+  return KEY_VARS
+    .map((name) => ({ name, value: String(process.env[name] || '').trim() }))
+    .filter((k) => k.value)
+    .map((k) => ({ ...k, provider: k.value.startsWith('sk-ant-') ? 'claude' : 'gemini' }));
+}
+
+// Claude 설정. 모델은 환경변수 CLAUDE_MODEL 로 바꿀 수 있어요 (기본: 빠르고 싼 Haiku 5.5).
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const DEFAULT_CLAUDE_MODEL = 'claude-haiku-5-5';
+// 생각(thinking) 끄는 방법은 모델마다 달라요: Haiku 5.5 는 disabled, Sonnet 5.5 는 disabled 가 400 이라 between_tools,
+// 그 밖의 모델(Opus 등)은 생각을 끌 수 없어서 아무것도 보내지 않아요.
+function thinkingFor(model) {
+  if (/haiku-5/i.test(model)) return { type: 'disabled' };
+  if (/sonnet-5-5/i.test(model)) return { type: 'between_tools' };
+  return null;
 }
 
 // 마지막 답에서 JSON 을 꺼내요 (앞뒤에 다른 글이 붙어도 첫 { 부터 마지막 } 까지)
@@ -305,10 +321,11 @@ module.exports = async function handler(req, res) {
   if (!question) return fail(res, 400, '질문을 한 줄 적어 주세요.');
   const profile = cleanProfile(body && body.profile);
 
-  // 2) 열쇠가 없으면 연습 모드
+  // 2) 열쇠 읽기 (CONSOLE → GEMINI_API_KEY 순서). 열쇠가 sk-ant- 로 시작하면 Claude, 아니면 Gemini 로 불러요.
   const keys = getKeys();
   const scrubAll = (s) => keys.reduce((acc, k) => scrub(acc, k.value), String(s));
   if (!keys.length) {
+    // 열쇠가 하나도 없으면 연습 모드
     try {
       // 원인을 찾기 쉽게 이름에 console/gemini/google 이 들어간 환경변수 이름(값은 아님)을 알려 줘요
       const names = Object.keys(process.env).filter((k) => /console|gemini|google/i.test(k)).slice(0, 6).map((k) => k + ':' + (process.env[k] ? 'set' : 'empty'));
@@ -319,78 +336,55 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  const model = (process.env.GEMINI_MODEL || DEFAULT_MODEL).replace(/[^a-zA-Z0-9._-]/g, '');
-  const contents = [{ role: 'user', parts: [{ text: buildUserMessage(profile, question) }] }];
-  const steps = [];
+  const geminiModel = (process.env.GEMINI_MODEL || DEFAULT_MODEL).replace(/[^a-zA-Z0-9._-]/g, '');
+  const claudeModel = (process.env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL).replace(/[^a-zA-Z0-9._-]/g, '');
   const startedAt = Date.now();
-  let keyStart = 0; // 이 요청에서 처음 써 볼 열쇠 번호
   let usedVar = ''; // 실제로 쓰인 열쇠의 환경변수 이름 (값은 아님)
-  const failedKeys = []; // 막힌 열쇠 '이름:상태코드' (값은 아님)
-  // 열쇠 연결 상태 확인용: 설정된 이름, 막힌 이름과 상태, 비슷한 이름의 환경변수(이름만). 값은 절대 없어요.
+  let usedProvider = ''; // 'claude' | 'gemini'
+  const failedKeys = []; // 막힌 열쇠 '이름:상태코드 문구' (값은 아님)
+  // 열쇠 연결 상태 확인용: 설정된 이름과 모양, 막힌 열쇠와 이유, 비슷한 이름의 환경변수(이름만). 값은 절대 없어요.
   const keyInfo = () => ({
-    // 열쇠의 모양만 알려 줘요 (값은 아님): 길이, 'AIza' 로 시작하는지, 따옴표·공백·줄바꿈이 섞였는지
     configured: keys.map((k) => ({
       name: k.name,
+      provider: k.provider,
       len: k.value.length,
+      antPrefix: k.value.startsWith('sk-ant-'),
       aizaPrefix: k.value.startsWith('AIza'),
       oddChars: /["'\s=]/.test(String(process.env[k.name] || '').trim()),
     })),
     failed: failedKeys,
-    similarNames: Object.keys(process.env).filter((n) => /console|gemini|google/i.test(n) && !KEY_VARS.includes(n)).slice(0, 6),
+    similarNames: Object.keys(process.env).filter((n) => /console|gemini|google|anthropic|claude/i.test(n) && !KEY_VARS.includes(n)).slice(0, 6),
   });
 
-  // Gemini 한 번 부르기. toolsOff 면 도구를 못 쓰게 해요 (마지막 정리 차례)
-  async function callGemini(toolsOff) {
+  // AI 서버에 한 번 요청해요 (열쇠 하나로). 실패하면 상태 코드와 오류 문구 앞부분(열쇠는 가림)을 단 UpstreamError 를 던져요.
+  async function post(url, headers, payload, k) {
     const left = TOTAL_TIMEOUT_MS - (Date.now() - startedAt);
     if (left < 3000) throw Object.assign(new Error('deadline'), { name: 'AbortError' });
-    const payload = {
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents,
-      tools: TOOLS,
-      generationConfig: { maxOutputTokens: MAX_TOKENS },
-    };
-    if (toolsOff) payload.toolConfig = { functionCallingConfig: { mode: 'NONE' } };
-
-    // 열쇠를 차례로 써 봐요. 앞 열쇠가 막히면(한도 초과 등) 다음 열쇠로 같은 요청을 다시 보내요.
-    let lastErr = null;
-    for (let ki = keyStart; ki < keys.length; ki++) {
-      const k = keys[ki];
-      const left2 = TOTAL_TIMEOUT_MS - (Date.now() - startedAt);
-      if (left2 < 3000) break;
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), Math.min(CALL_TIMEOUT_MS, left2));
-      try {
-        const r = await fetch(API_BASE + model + ':generateContent', {
-          method: 'POST',
-          signal: ctl.signal,
-          headers: { 'content-type': 'application/json', 'x-goog-api-key': k.value },
-          body: JSON.stringify(payload),
-        });
-        if (!r.ok) {
-          // 원인을 알 수 있게 오류 문구 앞부분만 남겨요 (열쇠·질문·답 본문은 없음)
-          let detail = '';
-          try {
-            const j = await r.json();
-            if (j && j.error && typeof j.error.message === 'string') detail = j.error.message;
-          } catch (e) {
-            /* 본문을 못 읽어도 상태 코드는 남겨요 */
-          }
-          console.error('agent upstream detail (' + k.name + '): ' + scrubAll(detail).slice(0, 200));
-          console.error('agent failed: upstream ' + r.status);
-          // 화면 확인용으로 열쇠 이름(값은 아님)·상태 코드·오류 문구 앞부분(열쇠는 가림)을 오류에 달아 둬요
-          lastErr = Object.assign(new Error('upstream'), { name: 'UpstreamError', status: r.status, detail: scrubAll(detail).slice(0, 160), keyVar: k.name });
-          failedKeys.push(k.name + ':' + r.status + ' ' + scrubAll(detail).slice(0, 90));
-          if (ki < keys.length - 1 && [400, 401, 403, 429].includes(r.status)) { keyStart = ki + 1; continue; }
-          throw lastErr;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), Math.min(CALL_TIMEOUT_MS, left));
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        signal: ctl.signal,
+        headers: { 'content-type': 'application/json', ...headers },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        let detail = '';
+        try {
+          const j = await r.json();
+          if (j && j.error && typeof j.error.message === 'string') detail = j.error.message;
+        } catch (e) {
+          /* 본문을 못 읽어도 상태 코드는 남겨요 */
         }
-        keyStart = ki; // 이 열쇠가 되니, 이 요청의 다음 호출도 이 열쇠로 해요
-        usedVar = k.name;
-        return await r.json();
-      } finally {
-        clearTimeout(timer);
+        const d = scrubAll(detail).slice(0, 160);
+        console.error('agent upstream ' + r.status + ' (' + k.name + '/' + k.provider + '): ' + d);
+        throw Object.assign(new Error('upstream'), { name: 'UpstreamError', status: r.status, detail: d, keyVar: k.name, provider: k.provider });
       }
+      return await r.json();
+    } finally {
+      clearTimeout(timer);
     }
-    throw lastErr || Object.assign(new Error('deadline'), { name: 'AbortError' });
   }
 
   // 답에서 첫 후보의 조각들 (없으면 빈 목록)
@@ -398,6 +392,100 @@ module.exports = async function handler(req, res) {
     const c = d && Array.isArray(d.candidates) ? d.candidates[0] : null;
     return c && c.content && Array.isArray(c.content.parts) ? c.content.parts : [];
   };
+
+  // ---- Gemini: functionCall / functionResponse ----
+  function geminiAdapter(k) {
+    const contents = [{ role: 'user', parts: [{ text: buildUserMessage(profile, question) }] }];
+    return {
+      async call(toolsOff) {
+        const payload = {
+          systemInstruction: { parts: [{ text: SYSTEM }] },
+          contents,
+          tools: TOOLS,
+          generationConfig: { maxOutputTokens: MAX_TOKENS },
+        };
+        if (toolsOff) payload.toolConfig = { functionCallingConfig: { mode: 'NONE' } };
+        const d = await post(API_BASE + geminiModel + ':generateContent', { 'x-goog-api-key': k.value }, payload, k);
+        const parts = partsOf(d);
+        const cand = Array.isArray(d.candidates) ? d.candidates[0] : null;
+        return {
+          raw: parts,
+          calls: parts.filter((p) => p && p.functionCall).map((p) => ({ id: p.functionCall.id, name: p.functionCall.name, args: p.functionCall.args })),
+          text: textOf(parts),
+          why: 'finishReason=' + String((cand && cand.finishReason) || '?').slice(0, 40) + ' blockReason=' + String((d.promptFeedback && d.promptFeedback.blockReason) || '-').slice(0, 40),
+        };
+      },
+      pushAssistant(out) { contents.push({ role: 'model', parts: out.raw }); }, // 받은 조각(생각 서명 포함)을 그대로 돌려줘야 해요
+      pushResults(list) {
+        contents.push({
+          role: 'user',
+          parts: list.map(({ call, result }) => ({ functionResponse: { ...(call.id ? { id: call.id } : {}), name: call.name, response: { result } } })),
+        });
+      },
+    };
+  }
+
+  // ---- Claude (Messages API): tool_use / tool_result ----
+  function claudeAdapter(k) {
+    const messages = [{ role: 'user', content: buildUserMessage(profile, question) }];
+    const tools = TOOL_DEFS.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+    const thinking = thinkingFor(claudeModel);
+    return {
+      async call(toolsOff) {
+        const payload = { model: claudeModel, max_tokens: MAX_TOKENS, system: SYSTEM, messages, tools };
+        if (thinking) payload.thinking = thinking;
+        if (toolsOff) payload.tool_choice = { type: 'none' }; // 마지막 정리 차례: 도구는 못 쓰게 해요
+        const d = await post(ANTHROPIC_URL, { 'x-api-key': k.value, 'anthropic-version': '2023-06-01' }, payload, k);
+        const blocks = Array.isArray(d && d.content) ? d.content : [];
+        return {
+          raw: blocks,
+          calls: blocks.filter((b) => b && b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input })),
+          text: blocks.filter((b) => b && b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('').trim(),
+          why: 'stop_reason=' + String((d && d.stop_reason) || '?').slice(0, 30),
+        };
+      },
+      pushAssistant(out) { messages.push({ role: 'assistant', content: out.raw }); }, // 생각 블록이 있으면 그대로 돌려줘요
+      pushResults(list) {
+        // 도구 결과는 한 번에 한 메시지로 모아서 돌려줘요
+        messages.push({
+          role: 'user',
+          content: list.map(({ call, result }) => ({
+            type: 'tool_result',
+            tool_use_id: call.id,
+            content: JSON.stringify(result),
+            ...(result && (result.error || result.ok === false) ? { is_error: true } : {}),
+          })),
+        });
+      },
+    };
+  }
+
+  // 도구 루프: 도구를 부르면 서버가 실행하고 결과를 돌려준 뒤 다시 판단하게 해요 (최대 5번)
+  async function runAgent(adapter) {
+    const steps = [];
+    let rounds = 0;
+    let out = null;
+    for (let i = 0; i < MAX_ROUNDS; i++) {
+      out = await adapter.call(false);
+      rounds = i + 1;
+      if (!out.calls.length) break;
+      adapter.pushAssistant(out);
+      const results = [];
+      for (const c of out.calls) {
+        const result = await runTool(c.name, c.args);
+        steps.push(stepFor(c.name, c.args, result));
+        results.push({ call: c, result });
+      }
+      adapter.pushResults(results);
+      out = null; // 아직 마지막 답이 아니에요
+    }
+    // 5번을 다 썼는데도 도구를 부르려 하면, 도구 없이 지금까지 정보로 답하게 해요
+    if (!out) {
+      out = await adapter.call(true);
+      rounds += 1;
+    }
+    return { text: out.text, why: out.why, steps, rounds };
+  }
 
   // AI 가 한도 초과(429)·오류·시간 초과 등으로 답하지 못하면, 같은 도구(장소·날씨)로 규칙 기반 답을 대신 만들어 줘요.
   // 그래서 사용자는 빈손이 되지 않고, 이유(debug)는 개발자가 응답에서 볼 수 있어요. 규칙 답도 못 만들면 그때만 오류예요.
@@ -411,61 +499,57 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  try {
-    // 3) 도구 루프: 도구를 부르면 서버가 실행하고 결과를 돌려준 뒤 다시 판단하게 해요
-    let dataOut = null;
-    let rounds = 0;
-    for (let i = 0; i < MAX_ROUNDS; i++) {
-      dataOut = await callGemini(false);
-      rounds = i + 1;
-      const parts = partsOf(dataOut);
-      const calls = parts.filter((p) => p && p.functionCall);
-      if (!calls.length) break;
-      contents.push({ role: 'model', parts }); // 받은 조각(생각 서명 포함)을 그대로 돌려줘야 해요
-      const replies = [];
-      for (const p of calls) {
-        const fc = p.functionCall;
-        const result = await runTool(fc.name, fc.args);
-        steps.push(stepFor(fc.name, fc.args, result));
-        replies.push({
-          functionResponse: { ...(fc.id ? { id: fc.id } : {}), name: fc.name, response: { result } },
-        });
-      }
-      contents.push({ role: 'user', parts: replies });
-      dataOut = null; // 아직 마지막 답이 아니에요
-    }
-    // 5번을 다 썼는데도 도구를 부르려 하면, 도구 없이 지금까지 정보로 답하게 해요
-    if (!dataOut) {
-      dataOut = await callGemini(true);
-      rounds += 1;
-    }
+  // 막히거나 거절된 열쇠(한도 초과·잘못된 열쇠·모델 없음·서버 혼잡)는 다음 열쇠(다른 AI 포함)로 처음부터 다시 해요
+  const RETRY_STATUS = [400, 401, 403, 404, 429, 500, 502, 503, 529];
 
-    // 4) 마지막 답 정리
-    const text = textOf(partsOf(dataOut));
-    if (!text) {
-      const cand = dataOut && Array.isArray(dataOut.candidates) ? dataOut.candidates[0] : null;
-      const finish = String((cand && cand.finishReason) || '?').slice(0, 40);
-      const block = String((dataOut && dataOut.promptFeedback && dataOut.promptFeedback.blockReason) || '-').slice(0, 40);
-      console.error('agent empty: finishReason=' + finish + ' blockReason=' + block);
-      return fallback({ empty: true, finishReason: finish, blockReason: block, model });
+  try {
+    let done = null;
+    let lastErr = null;
+    for (const k of keys) {
+      try {
+        const r = await runAgent(k.provider === 'claude' ? claudeAdapter(k) : geminiAdapter(k));
+        if (!r.text) {
+          // 빈 답(안전 장치로 막힘 등)도 다음 열쇠로 넘어가요
+          console.error('agent empty (' + k.name + '): ' + r.why);
+          failedKeys.push(k.name + ':empty ' + r.why);
+          lastErr = Object.assign(new Error('empty'), { name: 'EmptyAnswer', detail: r.why, keyVar: k.name, provider: k.provider });
+          continue;
+        }
+        done = r;
+        usedVar = k.name;
+        usedProvider = k.provider;
+        break;
+      } catch (e) {
+        if (e && e.name === 'UpstreamError' && RETRY_STATUS.includes(e.status)) {
+          failedKeys.push(k.name + ':' + e.status + ' ' + String(e.detail || '').slice(0, 90));
+          lastErr = e;
+          continue;
+        }
+        throw e;
+      }
     }
+    if (!done) throw lastErr || Object.assign(new Error('no answer'), { name: 'NoAnswer' });
+
+    const { text, steps, rounds } = done;
+    const via = { via: usedVar, provider: usedProvider, keyInfo: keyInfo() };
     const parsed = parseFinal(text);
     if (!parsed) {
       // JSON 이 아니면(도구 없이 답할 질문 등) 모델이 쓴 글을 그대로 보여 줘요
-      return send(res, 200, { ...buildResult('live', [], '', '', steps, rounds), text, via: usedVar, keyInfo: keyInfo() });
+      return send(res, 200, { ...buildResult('live', [], '', '', steps, rounds), text, ...via });
     }
     const places = enrichPlaces(parsed.places);
     const judge = typeof parsed.judge === 'string' ? parsed.judge.trim().slice(0, 200) : '';
     const tip = typeof parsed.tip === 'string' ? parsed.tip.trim().slice(0, 200) : '';
     if (judge) steps.push({ kind: 'judge', text: judge });
-    return send(res, 200, { ...buildResult('live', places, judge, tip, steps, rounds), via: usedVar, keyInfo: keyInfo() });
+    return send(res, 200, { ...buildResult('live', places, judge, tip, steps, rounds), ...via });
   } catch (e) {
     // 예외 메시지는 남기지 않고 이름만 (시간 초과는 timeout)
     const name = e && e.name === 'AbortError' ? 'timeout' : String((e && e.name) || 'Error').slice(0, 40);
     console.error('agent failed: ' + name);
-    // 원인을 찾기 쉽게 실패 이유(이름, AI 쪽 상태 코드와 오류 문구 앞부분, 모델 이름)를 함께 알려 줘요. 열쇠·질문은 없어요.
-    const debug = { error: name, model };
-    if (e && e.status) { debug.status = e.status; debug.detail = e.detail || ''; debug.keyVar = e.keyVar || ''; }
+    // 원인을 찾기 쉽게 실패 이유(이름, AI 쪽 상태 코드와 오류 문구 앞부분, 열쇠 이름)를 함께 알려 줘요. 열쇠·질문은 없어요.
+    const debug = { error: name, models: { claude: claudeModel, gemini: geminiModel } };
+    if (e && e.status) { debug.status = e.status; debug.detail = e.detail || ''; }
+    if (e && e.keyVar) debug.keyVar = e.keyVar;
     return fallback(debug);
   }
 };
