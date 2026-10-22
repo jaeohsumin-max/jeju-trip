@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>find_spots 시험</title>
+<style>
+  :root{--orange:#ff8a1f;--orange-d:#e56f00;--line:#f0dcc4;--ink:#2f2a26}
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px 16px;background:#fffaf4;color:var(--ink);word-break:keep-all;
+    font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+  main{max-width:720px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:1.4rem}
+  p.sub{margin:0 0 16px;color:#8a7c70;font-size:.9rem}
+  form{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:16px}
+  label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:700}
+  select,button{height:44px;border-radius:12px;border:2px solid var(--line);background:#fff;font:inherit;padding:0 12px}
+  button{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:800;cursor:pointer}
+  button:active{background:var(--orange-d)}
+  #status{margin:0 0 10px;font-size:.95rem}
+  #status.err{color:#b3261e}
+  .wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;background:#fff;border:2px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:.95rem;vertical-align:top}
+  th{background:#fff1e0;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+</style>
+</head>
+<body>
+<main>
+  <h1>find_spots 시험</h1>
+  <p class="sub">지역과 실내 여부를 고르면 <code>/api/tools</code> 의 find_spots 를 그대로 불러서 결과를 표로 보여 줘요.</p>
+  <form id="form">
+    <label>지역
+      <select id="area">
+        <option>동쪽</option><option>서쪽</option><option>서귀포</option><option>제주시</option>
+      </select>
+    </label>
+    <label>실내 여부
+      <select id="indoor">
+        <option value="">전체 (생략)</option><option value="true">실내만</option><option value="false">야외만</option>
+      </select>
+    </label>
+    <button type="submit">찾기</button>
+  </form>
+  <p id="status" role="status"></p>
+  <div class="wrap">
+    <table id="table" hidden>
+      <thead><tr><th>이름</th><th>지역</th><th>실내 여부</th><th>설명</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+  const area=document.getElementById('area'),indoor=document.getElementById('indoor');
+  const status=document.getElementById('status'),table=document.getElementById('table'),rows=document.getElementById('rows');
+  async function run(){
+    status.className='';status.textContent='찾는 중…';table.hidden=true;rows.textContent='';
+    const qs=new URLSearchParams({area:area.value});
+    if(indoor.value)qs.set('indoor',indoor.value);
+    try{
+      const r=await fetch('/api/tools?'+qs);
+      const d=await r.json();
+      if(!r.ok||d.error){status.className='err';status.textContent='오류: '+(d.error||r.status);return}
+      d.spots.forEach(s=>{
+        const tr=document.createElement('tr');
+        [s.name,s.area,s.indoor?'실내':'야외',s.description].forEach(v=>{
+          const td=document.createElement('td');td.textContent=String(v);tr.appendChild(td);
+        });
+        rows.appendChild(tr);
+      });
+      table.hidden=d.spots.length===0;
+      status.textContent=area.value+' · '+(indoor.value===''?'전체':indoor.value==='true'?'실내':'야외')+
+        ' → '+d.count+'곳'+(d.truncated?' (8곳까지만 보여 줘요)':'')+(d.count?'':' — 목록에 없어요');
+    }catch(e){status.className='err';status.textContent='불러오지 못했어요. 서버가 켜져 있는지 확인해 주세요.'}
+  }
+  document.getElementById('form').onsubmit=e=>{e.preventDefault();run()};
+</script>
+</body>
+</html>
