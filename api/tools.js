@@ -6,7 +6,7 @@ const data = require('../data/jeju_spots.json');
 const AREAS = ['동쪽', '서쪽', '서귀포', '제주시'];
 const MAX_RESULTS = 8;
 
-// Claude 에게 알려 줄 도구 설명
+// 모델에게 알려 줄 도구 설명
 const findSpotsTool = {
   name: 'find_spots',
   description:

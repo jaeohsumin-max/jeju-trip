@@ -1,12 +1,12 @@
 // Vercel 서버 함수: POST /api/recommend  (Node.js, CommonJS, 다른 라이브러리 없이 fetch)
 // 받는 값: { question, profile }
 // 돌려주는 값: { mode: 'live' | 'practice' | 'error', text }
-// 열쇠(API 키)는 환경 변수 ANTHROPIC_API_KEY 에서만 읽어요. 코드와 응답·로그에는 절대 넣지 않아요.
+// 열쇠(API 키)는 환경 변수 GEMINI_API_KEY 에서만 읽어요. 코드와 응답·로그에는 절대 넣지 않아요.
 
-const API_URL = 'https://api.anthropic.com/v1/messages';
-const DEFAULT_MODEL = 'claude-haiku-5-5';
+const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const MAX_QUESTION = 300;
-const MAX_TOKENS = 600;
+const MAX_TOKENS = 1024; // 생각(thinking)에 쓰는 토큰도 이 안에 들어가서 넉넉하게 잡아요
 const TIMEOUT_MS = 25000;
 const CHECK_LINE = '방문 전 운영 여부를 확인하세요';
 const RETRY_TEXT = '잠시 후 다시 시도해 주세요.';
@@ -80,13 +80,6 @@ function buildUserMessage(profile, question) {
   ].join('\n');
 }
 
-// 생각(thinking) 끄는 방법은 모델마다 달라요
-function thinkingFor(model) {
-  if (/haiku-5/i.test(model)) return { type: 'disabled' };
-  if (/sonnet-5-5/i.test(model)) return { type: 'between_tools' }; // Sonnet 5.5 는 disabled 가 400
-  return null; // 그 밖의 모델은 thinking 을 보내지 않아요
-}
-
 // 답의 마지막 줄이 정확히 "방문 전 운영 여부를 확인하세요" 가 되게 맞춰요
 function ensureCheckLine(text) {
   const lines = text.split('\n').map((l) => l.trimEnd());
@@ -121,41 +114,34 @@ module.exports = async function handler(req, res) {
   const profile = cleanProfile(body && body.profile);
 
   // 2) 열쇠가 없으면 연습 모드 (장소 추천은 넣지 않아요)
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = process.env.GEMINI_API_KEY;
   if (!key) {
     return send(res, 200, {
       mode: 'practice',
-      text: '(연습 모드) 아직 진짜 추천은 연결되지 않았어요. 열쇠를 설정하면 Claude가 제주 반나절 코스를 추천해 드려요.',
+      text: '(연습 모드) 아직 진짜 추천은 연결되지 않았어요. 열쇠를 설정하면 AI가 제주 반나절 코스를 추천해 드려요.',
     });
   }
 
-  // 3) Claude 에게 묻기 (temperature / top_p / top_k 는 보내지 않아요)
-  const model = process.env.CLAUDE_MODEL || DEFAULT_MODEL;
+  // 3) Gemini 에게 묻기
+  const model = (process.env.GEMINI_MODEL || DEFAULT_MODEL).replace(/[^a-zA-Z0-9._-]/g, '');
   const payload = {
-    model,
-    max_tokens: MAX_TOKENS,
-    system: SYSTEM,
-    messages: [{ role: 'user', content: buildUserMessage(profile, question) }],
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents: [{ role: 'user', parts: [{ text: buildUserMessage(profile, question) }] }],
+    generationConfig: { maxOutputTokens: MAX_TOKENS },
   };
-  const thinking = thinkingFor(model);
-  if (thinking) payload.thinking = thinking;
 
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   try {
-    const r = await fetch(API_URL, {
+    const r = await fetch(API_BASE + model + ':generateContent', {
       method: 'POST',
       signal: ctl.signal,
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify(payload),
     });
 
     if (!r.ok) {
-      // 원인을 알 수 있게 Anthropic 이 알려 준 오류 문구 앞부분만 남겨요 (열쇠·질문·답 본문은 없음)
+      // 원인을 알 수 있게 Gemini 가 알려 준 오류 문구 앞부분만 남겨요 (열쇠·질문·답 본문은 없음)
       let detail = '';
       try {
         const j = await r.json();
@@ -169,16 +155,17 @@ module.exports = async function handler(req, res) {
     }
 
     const data = await r.json();
-    const blocks = Array.isArray(data && data.content) ? data.content : [];
-    const text = blocks
-      .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
-      .map((b) => b.text)
+    const cand = data && Array.isArray(data.candidates) ? data.candidates[0] : null;
+    const parts = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts : [];
+    const text = parts
+      .filter((p) => p && typeof p.text === 'string' && !p.thought) // 생각 조각은 빼요
+      .map((p) => p.text)
       .join('')
       .trim();
     if (!text) {
-      const stop = String((data && data.stop_reason) || '?').slice(0, 30);
-      const kinds = blocks.map((b) => String((b && b.type) || '?').slice(0, 30)).join(',').slice(0, 80);
-      console.error('recommend empty: stop_reason=' + stop + ' blocks=' + (kinds || 'none'));
+      const finish = String((cand && cand.finishReason) || '?').slice(0, 40);
+      const block = String((data && data.promptFeedback && data.promptFeedback.blockReason) || '-').slice(0, 40);
+      console.error('recommend empty: finishReason=' + finish + ' blockReason=' + block);
       return fail(res, 502, RETRY_TEXT);
     }
     return send(res, 200, { mode: 'live', text: ensureCheckLine(text) });

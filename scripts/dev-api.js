@@ -1,5 +1,5 @@
 // 내 컴퓨터에서 /api/* 를 시험하는 작은 서버 (vercel dev 대신). 사용: npm run dev:api  → http://localhost:3100
-// api 폴더의 함수를 그대로 불러요. 열쇠는 .env 의 ANTHROPIC_API_KEY=값 에서만 읽고, 출력하지 않아요.
+// api 폴더의 함수를 그대로 불러요. 열쇠는 .env 의 GEMINI_API_KEY=값 에서만 읽고, 출력하지 않아요.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

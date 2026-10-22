@@ -1,18 +1,18 @@
 // Vercel 서버 함수: POST /api/agent  (Node.js, CommonJS, 다른 라이브러리 없이 fetch)
 // 받는 값: { question, profile }
 // 돌려주는 값: { mode: 'live' | 'practice' | 'error', text, itinerary, steps, rounds }
-// Claude 가 도구(find_spots, get_weather)를 골라 쓰고, 결과를 보고 다시 판단해요 (도구를 쓰는 차례는 최대 5번).
-// 열쇠(API 키)는 환경 변수 ANTHROPIC_API_KEY 에서만 읽어요. 코드와 응답·로그에는 절대 넣지 않아요.
+// Gemini 가 도구(find_spots, get_weather)를 골라 쓰고, 결과를 보고 다시 판단해요 (도구를 쓰는 차례는 최대 5번).
+// 열쇠(API 키)는 환경 변수 GEMINI_API_KEY 에서만 읽어요. 코드와 응답·로그에는 절대 넣지 않아요.
 
 const { TOOL_DEFS, runTool, getSpot } = require('./_tools.js');
 
-const API_URL = 'https://api.anthropic.com/v1/messages';
-const DEFAULT_MODEL = 'claude-haiku-5-5';
+const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const MAX_QUESTION = 300;
-const MAX_TOKENS = 1200;
+const MAX_TOKENS = 2048; // 생각(thinking)에 쓰는 토큰도 이 안에 들어가서 넉넉하게 잡아요
 const MAX_ROUNDS = 5; // 도구를 쓸 수 있는 차례 수
 const CALL_TIMEOUT_MS = 25000;
-const TOTAL_TIMEOUT_MS = 55000;
+const TOTAL_TIMEOUT_MS = 55000; // vercel.json 의 maxDuration(60초)보다 짧게
 const CHECK_LINE = '방문 전 운영 여부를 확인하세요';
 const RETRY_TEXT = '잠시 후 다시 시도해 주세요.';
 
@@ -40,6 +40,11 @@ const SYSTEM = [
   '마지막 답은 아래 JSON 하나만 쓰세요 (다른 글, 코드 블록 표시 없이):',
   '{"summary":"날씨와 코스를 한두 문장으로","picks":[{"id":"장소 id","reason":"한 줄 이유"},{"id":"...","reason":"..."},{"id":"...","reason":"..."}]}',
 ].join('\n');
+
+// Gemini 형식의 도구 설명 (이름, 설명, 입력 모양은 _tools.js 의 것을 그대로 써요)
+const TOOLS = [{
+  functionDeclarations: TOOL_DEFS.map((t) => ({ name: t.name, description: t.description, parameters: t.input_schema })),
+}];
 
 function send(res, status, body) {
   res.status(status);
@@ -84,13 +89,6 @@ function buildUserMessage(profile, question) {
     '',
     '<question>' + question + '</question>',
   ].join('\n');
-}
-
-// 생각(thinking) 끄는 방법은 모델마다 달라요
-function thinkingFor(model) {
-  if (/haiku-5/i.test(model)) return { type: 'disabled' };
-  if (/sonnet-5-5/i.test(model)) return { type: 'between_tools' }; // Sonnet 5.5 는 disabled 가 400
-  return null; // 그 밖의 모델은 thinking 을 보내지 않아요
 }
 
 // 로그에 남길 짧은 글에서 열쇠 값이 있으면 가려요 (혹시 모를 경우 대비)
@@ -138,10 +136,11 @@ function buildItinerary(picks) {
   return out;
 }
 
-function textOf(blocks) {
-  return blocks
-    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
-    .map((b) => b.text)
+// 모델이 보낸 조각들 중 글만 모아요 (생각 조각은 빼요)
+function textOf(parts) {
+  return parts
+    .filter((p) => p && typeof p.text === 'string' && !p.thought)
+    .map((p) => p.text)
     .join('')
     .trim();
 }
@@ -168,39 +167,38 @@ module.exports = async function handler(req, res) {
   const profile = cleanProfile(body && body.profile);
 
   // 2) 열쇠가 없으면 연습 모드
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = process.env.GEMINI_API_KEY;
   if (!key) {
     return send(res, 200, {
       mode: 'practice',
-      text: '(연습 모드) 아직 진짜 추천은 연결되지 않았어요. 열쇠를 설정하면 Claude가 날씨를 보고 제주 반나절 코스를 짜 드려요.',
+      text: '(연습 모드) 아직 진짜 추천은 연결되지 않았어요. 열쇠를 설정하면 AI가 날씨를 보고 제주 반나절 코스를 짜 드려요.',
     });
   }
 
-  const model = process.env.CLAUDE_MODEL || DEFAULT_MODEL;
-  const thinking = thinkingFor(model);
-  const messages = [{ role: 'user', content: buildUserMessage(profile, question) }];
+  const model = (process.env.GEMINI_MODEL || DEFAULT_MODEL).replace(/[^a-zA-Z0-9._-]/g, '');
+  const contents = [{ role: 'user', parts: [{ text: buildUserMessage(profile, question) }] }];
   const steps = [];
   const startedAt = Date.now();
 
-  // Claude 한 번 부르기. toolsOff 면 도구를 못 쓰게 해요 (마지막 정리 차례)
-  async function callClaude(toolsOff) {
+  // Gemini 한 번 부르기. toolsOff 면 도구를 못 쓰게 해요 (마지막 정리 차례)
+  async function callGemini(toolsOff) {
     const left = TOTAL_TIMEOUT_MS - (Date.now() - startedAt);
     if (left < 3000) throw Object.assign(new Error('deadline'), { name: 'AbortError' });
-    const payload = { model, max_tokens: MAX_TOKENS, system: SYSTEM, tools: TOOL_DEFS, messages };
-    if (toolsOff) payload.tool_choice = { type: 'none' };
-    if (thinking) payload.thinking = thinking;
+    const payload = {
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents,
+      tools: TOOLS,
+      generationConfig: { maxOutputTokens: MAX_TOKENS },
+    };
+    if (toolsOff) payload.toolConfig = { functionCallingConfig: { mode: 'NONE' } };
 
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), Math.min(CALL_TIMEOUT_MS, left));
     try {
-      const r = await fetch(API_URL, {
+      const r = await fetch(API_BASE + model + ':generateContent', {
         method: 'POST',
         signal: ctl.signal,
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify(payload),
       });
       if (!r.ok) {
@@ -222,44 +220,52 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // 답에서 첫 후보의 조각들 (없으면 빈 목록)
+  const partsOf = (data) => {
+    const c = data && Array.isArray(data.candidates) ? data.candidates[0] : null;
+    return c && c.content && Array.isArray(c.content.parts) ? c.content.parts : [];
+  };
+
   try {
     // 3) 도구 루프: 도구를 부르면 결과를 돌려주고 다시 판단하게 해요
     let data = null;
     let rounds = 0;
     for (let i = 0; i < MAX_ROUNDS; i++) {
-      data = await callClaude(false);
+      data = await callGemini(false);
       rounds = i + 1;
-      if (data.stop_reason !== 'tool_use') break;
-      const blocks = Array.isArray(data.content) ? data.content : [];
-      messages.push({ role: 'assistant', content: blocks }); // thinking 블록도 그대로 돌려줘야 해요
-      const results = [];
-      for (const b of blocks) {
-        if (!b || b.type !== 'tool_use') continue;
-        const result = await runTool(b.name, b.input);
-        steps.push({ tool: b.name, input: b.input || {}, summary: summarize(b.name, b.input, result) });
-        results.push({
-          type: 'tool_result',
-          tool_use_id: b.id,
-          content: JSON.stringify(result),
-          ...(result && result.error ? { is_error: true } : {}),
+      const parts = partsOf(data);
+      const calls = parts.filter((p) => p && p.functionCall);
+      if (!calls.length) break;
+      contents.push({ role: 'model', parts }); // 받은 조각(생각 서명 포함)을 그대로 돌려줘야 해요
+      const replies = [];
+      for (const p of calls) {
+        const fc = p.functionCall;
+        const result = await runTool(fc.name, fc.args);
+        steps.push({ tool: fc.name, input: fc.args || {}, summary: summarize(fc.name, fc.args, result) });
+        replies.push({
+          functionResponse: {
+            ...(fc.id ? { id: fc.id } : {}),
+            name: fc.name,
+            response: result && result.error ? { error: String(result.error) } : { result },
+          },
         });
       }
-      messages.push({ role: 'user', content: results });
+      contents.push({ role: 'user', parts: replies });
       data = null; // 아직 마지막 답이 아니에요
     }
     // 5번을 다 썼는데도 도구를 부르려 하면, 도구 없이 지금까지 정보로 답하게 해요
     if (!data) {
-      data = await callClaude(true);
+      data = await callGemini(true);
       rounds += 1;
     }
 
     // 4) 마지막 답 정리
-    const blocks = Array.isArray(data && data.content) ? data.content : [];
-    const text = textOf(blocks);
+    const text = textOf(partsOf(data));
     if (!text) {
-      const stop = String((data && data.stop_reason) || '?').slice(0, 30);
-      const kinds = blocks.map((b) => String((b && b.type) || '?').slice(0, 30)).join(',').slice(0, 80);
-      console.error('agent empty: stop_reason=' + stop + ' blocks=' + (kinds || 'none'));
+      const cand = data && Array.isArray(data.candidates) ? data.candidates[0] : null;
+      const finish = String((cand && cand.finishReason) || '?').slice(0, 40);
+      const block = String((data && data.promptFeedback && data.promptFeedback.blockReason) || '-').slice(0, 40);
+      console.error('agent empty: finishReason=' + finish + ' blockReason=' + block);
       return fail(res, 502, RETRY_TEXT);
     }
     const parsed = parseFinal(text);
