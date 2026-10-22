@@ -325,6 +325,13 @@ module.exports = async function handler(req, res) {
   const startedAt = Date.now();
   let keyStart = 0; // 이 요청에서 처음 써 볼 열쇠 번호
   let usedVar = ''; // 실제로 쓰인 열쇠의 환경변수 이름 (값은 아님)
+  const failedKeys = []; // 막힌 열쇠 '이름:상태코드' (값은 아님)
+  // 열쇠 연결 상태 확인용: 설정된 이름, 막힌 이름과 상태, 비슷한 이름의 환경변수(이름만). 값은 절대 없어요.
+  const keyInfo = () => ({
+    configured: keys.map((k) => k.name),
+    failed: failedKeys,
+    similarNames: Object.keys(process.env).filter((n) => /console|gemini|google/i.test(n) && !KEY_VARS.includes(n)).slice(0, 6),
+  });
 
   // Gemini 한 번 부르기. toolsOff 면 도구를 못 쓰게 해요 (마지막 정리 차례)
   async function callGemini(toolsOff) {
@@ -366,6 +373,7 @@ module.exports = async function handler(req, res) {
           console.error('agent failed: upstream ' + r.status);
           // 화면 확인용으로 열쇠 이름(값은 아님)·상태 코드·오류 문구 앞부분(열쇠는 가림)을 오류에 달아 둬요
           lastErr = Object.assign(new Error('upstream'), { name: 'UpstreamError', status: r.status, detail: scrubAll(detail).slice(0, 160), keyVar: k.name });
+          failedKeys.push(k.name + ':' + r.status);
           if (ki < keys.length - 1 && [400, 401, 403, 429].includes(r.status)) { keyStart = ki + 1; continue; }
           throw lastErr;
         }
@@ -390,7 +398,7 @@ module.exports = async function handler(req, res) {
   async function fallback(debug) {
     try {
       const r = await practice(question, profile);
-      return send(res, 200, { ...r, notice: 'AI가 잠시 바빠서 간단 모드로 답했어요', debug });
+      return send(res, 200, { ...r, notice: 'AI가 잠시 바빠서 간단 모드로 답했어요', debug: { ...debug, keyInfo: keyInfo() } });
     } catch (e2) {
       console.error('agent fallback failed: ' + String((e2 && e2.name) || 'Error').slice(0, 40));
       return send(res, 502, { mode: 'error', text: RETRY_TEXT, debug });
@@ -438,13 +446,13 @@ module.exports = async function handler(req, res) {
     const parsed = parseFinal(text);
     if (!parsed) {
       // JSON 이 아니면(도구 없이 답할 질문 등) 모델이 쓴 글을 그대로 보여 줘요
-      return send(res, 200, { ...buildResult('live', [], '', '', steps, rounds), text, via: usedVar });
+      return send(res, 200, { ...buildResult('live', [], '', '', steps, rounds), text, via: usedVar, keyInfo: keyInfo() });
     }
     const places = enrichPlaces(parsed.places);
     const judge = typeof parsed.judge === 'string' ? parsed.judge.trim().slice(0, 200) : '';
     const tip = typeof parsed.tip === 'string' ? parsed.tip.trim().slice(0, 200) : '';
     if (judge) steps.push({ kind: 'judge', text: judge });
-    return send(res, 200, { ...buildResult('live', places, judge, tip, steps, rounds), via: usedVar });
+    return send(res, 200, { ...buildResult('live', places, judge, tip, steps, rounds), via: usedVar, keyInfo: keyInfo() });
   } catch (e) {
     // 예외 메시지는 남기지 않고 이름만 (시간 초과는 timeout)
     const name = e && e.name === 'AbortError' ? 'timeout' : String((e && e.name) || 'Error').slice(0, 40);
