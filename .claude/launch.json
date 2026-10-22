@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jeju-api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-api.js"],
+      "port": 3100
+    },
+    {
+      "name": "jeju-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5173", "--strictPort"],
+      "port": 5173
+    }
+  ]
+}
