@@ -1,5 +1,5 @@
-// Vercel 서버 함수: GET /api/photos?topic=돌하르방
-// Pixabay 에서 제주 돌하르방·특산물 사진을 찾아 화면에 줄 목록으로 돌려줘요.
+// Vercel 서버 함수: GET /api/photos?topic=돌하르방  또는  GET /api/photos?q=한라산 (돋보기 검색)
+// Pixabay 에서 사진을 찾아 화면에 줄 목록으로 돌려줘요. topic 은 정해 둔 주제(돌하르방·특산물), q 는 자유 검색어예요.
 // 열쇠(API 키)는 환경 변수 PIXABAY_API_KEY 에서만 읽고, 화면(브라우저)으로는 절대 보내지 않아요.
 // Pixabay 규칙: 결과를 캐시하고, 화면에 출처(Pixabay)를 보이고, 사진 주소는 검색 결과를 보여 줄 때만 써요
 // (webformatURL 은 24시간만 유효해서 캐시도 그보다 짧게 20시간으로 해요).
@@ -19,7 +19,19 @@ const TOPICS = {
   갈치: [['갈치', 'ko'], ['cutlassfish', 'en'], ['hairtail fish', 'en']],
 };
 
-const cache = new Map(); // topic → { at, body }
+const cache = new Map(); // 'topic:돌하르방' 또는 'q:한라산' → { at, body }
+const MAX_CACHE = 200;
+const MAX_QUERY = 40;
+
+// Pixabay 한도(키 하나에 1분 100번)를 아끼려고, 이 서버가 1분에 보내는 검색 수를 제한해요
+const sent = [];
+function allowSearch() {
+  const now = Date.now();
+  while (sent.length && now - sent[0] > 60000) sent.shift();
+  if (sent.length >= 60) return false;
+  sent.push(now);
+  return true;
+}
 
 // 사진 주소는 Pixabay 것만 통과시켜요
 function safePixabayUrl(u) {
@@ -88,10 +100,25 @@ module.exports = async (req, res) => {
     res.setHeader('Allow', 'GET');
     return send(res, 405, { ok: false, note: 'GET 로만 요청할 수 있어요.' });
   }
-  const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
-  const topic = String(q.topic || '');
-  if (!Object.prototype.hasOwnProperty.call(TOPICS, topic)) {
-    return send(res, 400, { ok: false, note: '주제는 ' + Object.keys(TOPICS).join(', ') + ' 중 하나여야 해요.', topics: Object.keys(TOPICS) });
+  const params = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
+
+  // 무엇을 찾을지: 정해 둔 주제(topic) 또는 자유 검색어(q, 글자·숫자·띄어쓰기·-·_ 만, 40자까지)
+  let cacheKey;
+  let plan; // [[검색어, 언어], ...]
+  if (params.q !== undefined) {
+    const term = String(params.q).trim().replace(/\s+/g, ' ');
+    if (!term || term.length > MAX_QUERY || !/^[\p{L}\p{N} _-]+$/u.test(term)) {
+      return send(res, 400, { ok: false, note: '검색어는 글자·숫자·띄어쓰기로 ' + MAX_QUERY + '자까지 쓸 수 있어요.' });
+    }
+    cacheKey = 'q:' + term.toLowerCase();
+    plan = [[term, /[가-힣]/.test(term) ? 'ko' : 'en']];
+  } else {
+    const topic = String(params.topic || '');
+    if (!Object.prototype.hasOwnProperty.call(TOPICS, topic)) {
+      return send(res, 400, { ok: false, note: '주제는 ' + Object.keys(TOPICS).join(', ') + ' 중 하나이거나 q 로 검색어를 보내 주세요.', topics: Object.keys(TOPICS) });
+    }
+    cacheKey = 'topic:' + topic;
+    plan = TOPICS[topic];
   }
 
   const key = process.env.PIXABAY_API_KEY;
@@ -99,7 +126,7 @@ module.exports = async (req, res) => {
     return send(res, 200, { ok: false, reason: 'nokey', note: '사진 연결이 아직 안 됐어요 (PIXABAY_API_KEY 가 필요해요)' });
   }
 
-  const hit = cache.get(topic);
+  const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < CACHE_MS) return send(res, 200, hit.body, true);
 
   // 검색어를 차례로 써 보며 사진을 모아요 (같은 사진은 한 번만)
@@ -107,8 +134,9 @@ module.exports = async (req, res) => {
   const seen = new Set();
   let limited = false;
   let failed = false;
-  for (const [term, lang] of TOPICS[topic]) {
+  for (const [term, lang] of plan) {
     if (photos.length >= WANT) break;
+    if (!allowSearch()) { limited = true; break; }
     const got = await search(term, lang, key);
     if (got === 'limit') { limited = true; break; }
     if (got === null) { failed = true; continue; }
@@ -117,11 +145,15 @@ module.exports = async (req, res) => {
     }
   }
   if (!photos.length) {
-    const note = limited ? '잠시 뒤에 다시 눌러 주세요 (요청이 너무 많았어요)' : failed ? '사진을 가져오지 못했어요' : '사진을 찾지 못했어요';
+    const note = limited
+      ? '잠시 뒤에 다시 눌러 주세요 (요청이 너무 많았어요)'
+      : failed ? '사진을 가져오지 못했어요'
+        : params.q !== undefined ? '사진을 찾지 못했어요. 다른 말이나 영어로도 검색해 보세요 (예: tangerine)' : '사진을 찾지 못했어요';
     return send(res, 200, { ok: false, note });
   }
-  const body = { ok: true, topic, source: 'Pixabay', photos };
-  cache.set(topic, { at: Date.now(), body });
+  const body = { ok: true, topic: plan[0][0], source: 'Pixabay', photos };
+  if (cache.size >= MAX_CACHE) cache.delete(cache.keys().next().value); // 가장 오래된 것부터 비워요
+  cache.set(cacheKey, { at: Date.now(), body });
   return send(res, 200, body, true);
 };
 module.exports.TOPICS = Object.keys(TOPICS);

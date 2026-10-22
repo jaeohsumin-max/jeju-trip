@@ -59,3 +59,14 @@
 .p-agent .ps-nav.prev{left:4px}
 .p-agent .ps-nav.next{right:4px}
 @media(prefers-reduced-motion:reduce){.p-agent .ps-viewer,.p-agent .ps-viewer img{animation:none}}
+
+/* 돋보기 검색창 */
+.p-agent .ps-search{flex:none;display:flex;gap:8px;padding:10px 12px 0;background:#fff}
+.p-agent .ps-search input{flex:1;min-width:0;height:48px;padding:0 14px;border:2px solid var(--line);border-radius:14px;
+  font-size:1rem;font-family:inherit;outline:none}
+.p-agent .ps-search input:focus{border-color:var(--orange)}
+.p-agent .ps-search button{flex:none;width:52px;height:48px;border:0;border-radius:14px;background:var(--orange);color:#fff;
+  font-size:1.3rem;cursor:pointer}
+.p-agent .ps-search button:active{background:var(--orange-d)}
+.p-agent .ps-search button:focus-visible{outline:3px solid #7b3fc4;outline-offset:2px}
+.p-agent .ps-hint b{color:var(--orange-d)}

@@ -41,3 +41,7 @@
 .p-landing .end{text-align:center}
 .p-landing .end .small{margin-top:16px;font-size:1rem;color:var(--ink-soft)}
 .p-landing footer{text-align:center;padding:20px 16px 32px;font-size:1rem;color:var(--ink-soft)}
+
+/* 첫 화면 버튼 두 개: 위는 '지금 물어보기', 아래는 흰 바탕 '제주 사진' */
+.p-landing .btns{display:flex;flex-direction:column;align-items:center;gap:14px}
+.p-landing .btn.ghost{background:#fff;font-size:1.15rem;padding:0 28px;text-align:center}
