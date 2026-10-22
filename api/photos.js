@@ -123,7 +123,15 @@ module.exports = async (req, res) => {
 
   const key = process.env.PIXABAY_API_KEY;
   if (!key) {
-    return send(res, 200, { ok: false, reason: 'nokey', note: '사진 연결이 아직 안 됐어요 (PIXABAY_API_KEY 가 필요해요)' });
+    // 원인을 찾기 쉽게: 이 서버가 어느 환경(production/preview)에서 어느 커밋으로 도는지, 이름에 pixabay 가 들어간
+    // 환경변수가 있는지(이름과 '값 있음/비어 있음'만, 값은 절대 아님)를 함께 알려 줘요
+    const seen = Object.keys(process.env).filter((k) => /pixabay/i.test(k)).slice(0, 5).map((k) => k + ':' + (process.env[k] ? 'set' : 'empty'));
+    return send(res, 200, {
+      ok: false,
+      reason: 'nokey',
+      note: '사진 연결이 아직 안 됐어요 (PIXABAY_API_KEY 가 필요해요)',
+      debug: { env: process.env.VERCEL_ENV || 'local', commit: String(process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7), pixabayEnvNames: seen },
+    });
   }
 
   const hit = cache.get(cacheKey);
