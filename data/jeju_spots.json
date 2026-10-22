@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "regions": {
+      "동쪽": "구좌·성산·표선 쪽",
+      "서쪽": "한림·한경·안덕·대정 쪽",
+      "서귀포": "서귀포 시내와 중문 쪽",
+      "제주시": "제주시 시내와 조천 쪽"
+    },
+    "caution": "좌표는 대략값이고 rain_ok·difficulty·duration_min은 일반적인 기준으로 적은 값입니다. 운영 시간·휴관·탐방 통제는 담지 않았으니 방문 전 확인이 필요합니다."
+  },
+  "spots": [
+    { "id": "seongsan-ilchulbong", "name": "성산일출봉", "region": "동쪽", "type": "오름", "lat": 33.4580, "lng": 126.9425, "duration_min": 90, "difficulty": "보통", "rain_ok": false, "note": "정상까지 계단이 이어짐. 비 오는 날은 미끄러움 (확인 필요)" },
+    { "id": "seopjikoji", "name": "섭지코지", "region": "동쪽", "type": "바다", "lat": 33.4240, "lng": 126.9300, "duration_min": 60, "difficulty": "쉬움", "rain_ok": false, "note": "탁 트인 해안 산책로. 바람이 센 편" },
+    { "id": "yongnuni-oreum", "name": "용눈이오름", "region": "동쪽", "type": "오름", "lat": 33.4572, "lng": 126.8100, "duration_min": 50, "difficulty": "쉬움", "rain_ok": false, "note": "완만한 능선, 풀밭 길이라 비 온 뒤에는 질척임" },
+    { "id": "darangshi-oreum", "name": "다랑쉬오름", "region": "동쪽", "type": "오름", "lat": 33.4797, "lng": 126.8044, "duration_min": 60, "difficulty": "보통", "rain_ok": false, "note": "정상 분화구가 깊음. 오르막이 이어짐" },
+    { "id": "abu-oreum", "name": "아부오름", "region": "동쪽", "type": "오름", "lat": 33.4466, "lng": 126.8328, "duration_min": 30, "difficulty": "쉬움", "rain_ok": false, "note": "짧게 오를 수 있고 분화구 둘레를 걷는 코스" },
+    { "id": "bijarim", "name": "비자림", "region": "동쪽", "type": "숲", "lat": 33.4903, "lng": 126.8060, "duration_min": 60, "difficulty": "쉬움", "rain_ok": true, "note": "나무 그늘이 많아 비 오는 날에도 걷기 좋음. 입장료 (확인 필요)" },
+    { "id": "manjanggul", "name": "만장굴", "region": "동쪽", "type": "동굴", "lat": 33.5280, "lng": 126.7710, "duration_min": 60, "difficulty": "쉬움", "rain_ok": true, "note": "굴 안은 서늘함. 개방 구간·휴관 (확인 필요)" },
+    { "id": "woljeongri-beach", "name": "월정리해변", "region": "동쪽", "type": "바다", "lat": 33.5560, "lng": 126.7960, "duration_min": 60, "difficulty": "쉬움", "rain_ok": false, "note": "해변 카페가 많음" },
+    { "id": "hyeopjae-beach", "name": "협재해변", "region": "서쪽", "type": "바다", "lat": 33.3940, "lng": 126.2390, "duration_min": 60, "difficulty": "쉬움", "rain_ok": false, "note": "얕고 맑은 바다, 비양도가 보임" },
+    { "id": "hallim-park", "name": "한림공원", "region": "서쪽", "type": "정원", "lat": 33.3890, "lng": 126.2400, "duration_min": 90, "difficulty": "쉬움", "rain_ok": true, "note": "온실과 동굴이 있어 비 오는 날에도 가능. 입장료 (확인 필요)" },
+    { "id": "saebyeol-oreum", "name": "새별오름", "region": "서쪽", "type": "오름", "lat": 33.3660, "lng": 126.3570, "duration_min": 60, "difficulty": "보통", "rain_ok": false, "note": "정상까지 오르막, 바람이 강함" },
+    { "id": "geumoreum", "name": "금오름", "region": "서쪽", "type": "오름", "lat": 33.3460, "lng": 126.3010, "duration_min": 40, "difficulty": "쉬움", "rain_ok": false, "note": "정상에 물이 고인 분화구가 있음" },
+    { "id": "osulloc-tea", "name": "오설록 티뮤지엄", "region": "서쪽", "type": "박물관", "lat": 33.3060, "lng": 126.2890, "duration_min": 60, "difficulty": "쉬움", "rain_ok": true, "note": "실내 전시와 카페. 녹차밭 산책은 날씨에 따라" },
+    { "id": "sanbangsan", "name": "산방산", "region": "서쪽", "type": "오름", "lat": 33.2390, "lng": 126.3140, "duration_min": 60, "difficulty": "보통", "rain_ok": false, "note": "탐방로 통제 여부 (확인 필요)" },
+    { "id": "yongmeori-coast", "name": "용머리해안", "region": "서쪽", "type": "바다", "lat": 33.2320, "lng": 126.3170, "duration_min": 40, "difficulty": "쉬움", "rain_ok": false, "note": "파도·만조 때 출입 통제 (확인 필요)" },
+    { "id": "suwolbong", "name": "수월봉", "region": "서쪽", "type": "바다", "lat": 33.2940, "lng": 126.1630, "duration_min": 50, "difficulty": "쉬움", "rain_ok": false, "note": "화산재 지층이 보이는 해안 절벽, 일몰 명소" },
+    { "id": "cheonjiyeon-falls", "name": "천지연폭포", "region": "서귀포", "type": "폭포", "lat": 33.2470, "lng": 126.5550, "duration_min": 50, "difficulty": "쉬움", "rain_ok": true, "note": "비 온 뒤 물이 많아 더 볼만함. 산책로가 짧음" },
+    { "id": "jeongbang-falls", "name": "정방폭포", "region": "서귀포", "type": "폭포", "lat": 33.2440, "lng": 126.5710, "duration_min": 40, "difficulty": "쉬움", "rain_ok": true, "note": "바다로 곧바로 떨어지는 폭포" },
+    { "id": "oedolgae", "name": "외돌개", "region": "서귀포", "type": "바다", "lat": 33.2370, "lng": 126.5400, "duration_min": 60, "difficulty": "쉬움", "rain_ok": false, "note": "올레 7코스 일부, 해안 산책" },
+    { "id": "soesokkak", "name": "쇠소깍", "region": "서귀포", "type": "바다", "lat": 33.2530, "lng": 126.6230, "duration_min": 50, "difficulty": "쉬움", "rain_ok": false, "note": "민물과 바닷물이 만나는 계곡. 배 체험 운영 (확인 필요)" },
+    { "id": "olle-market", "name": "서귀포 매일올레시장", "region": "서귀포", "type": "시장", "lat": 33.2490, "lng": 126.5640, "duration_min": 60, "difficulty": "쉬움", "rain_ok": true, "note": "지붕이 있는 시장이라 비 오는 날에도 가능" },
+    { "id": "jungmun-jusangjeolli", "name": "중문 대포 주상절리대", "region": "서귀포", "type": "바다", "lat": 33.2380, "lng": 126.4250, "duration_min": 40, "difficulty": "쉬움", "rain_ok": false, "note": "파도가 높으면 위험. 운영 (확인 필요)" },
+    { "id": "dongmun-market", "name": "동문시장", "region": "제주시", "type": "시장", "lat": 33.5130, "lng": 126.5280, "duration_min": 60, "difficulty": "쉬움", "rain_ok": true, "note": "실내 구간이 많아 비 오는 날에도 가능" },
+    { "id": "yongduam", "name": "용두암", "region": "제주시", "type": "바다", "lat": 33.5160, "lng": 126.5120, "duration_min": 30, "difficulty": "쉬움", "rain_ok": false, "note": "공항에서 가까워 짧게 들르기 좋음" },
+    { "id": "hamdeok-beach", "name": "함덕해수욕장", "region": "제주시", "type": "바다", "lat": 33.5430, "lng": 126.6700, "duration_min": 60, "difficulty": "쉬움", "rain_ok": false, "note": "에메랄드빛 바다, 서우봉 산책로가 이어짐" },
+    { "id": "dodubong", "name": "도두봉", "region": "제주시", "type": "오름", "lat": 33.5100, "lng": 126.4660, "duration_min": 30, "difficulty": "쉬움", "rain_ok": false, "note": "낮고 짧은 오름, 공항 근처" },
+    { "id": "jeolmul-forest", "name": "절물자연휴양림", "region": "제주시", "type": "숲", "lat": 33.4300, "lng": 126.6140, "duration_min": 70, "difficulty": "쉬움", "rain_ok": true, "note": "삼나무 숲길이 평탄함. 입장료 (확인 필요)" },
+    { "id": "sanguoomburi", "name": "산굼부리", "region": "제주시", "type": "오름", "lat": 33.4290, "lng": 126.6900, "duration_min": 50, "difficulty": "쉬움", "rain_ok": false, "note": "평탄한 둘레길과 큰 분화구. 입장료 (확인 필요)" }
+  ]
+}
