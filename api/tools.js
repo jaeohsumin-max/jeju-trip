@@ -1,6 +1,6 @@
 // 에이전트 도구: find_spots (area 와 indoor 로 장소를 찾아요)
-// 주의: api/ 폴더의 파일은 Vercel 이 주소(/api/tools)로 열어 버려요. 그래서 아래처럼 함수로 내보내고,
-//       요청이 오면 404 만 돌려줘요. 도구는 이름 붙은 값(findSpots, findSpotsTool)으로 가져다 쓰세요.
+// 주의: api/ 폴더의 파일은 Vercel 이 주소(/api/tools)로 열어 버려요. 그래서 아래처럼 함수로 내보내요.
+//       도구는 이름 붙은 값(findSpots, findSpotsTool)으로 가져다 쓰세요.
 const data = require('../data/jeju_spots.json');
 
 const AREAS = ['동쪽', '서쪽', '서귀포', '제주시'];
@@ -40,6 +40,16 @@ function findSpots(input) {
   return { area, count: spots.length, truncated: matched.length > MAX_RESULTS, spots };
 }
 
-module.exports = (req, res) => res.status(404).end();
+// GET /api/tools?area=동쪽&indoor=true  → find_spots 결과 (tools_test.html 이 브라우저에서 시험할 때 써요)
+// 장소 목록은 공개 정보라 키가 필요 없어요. 그 밖의 요청은 404.
+module.exports = (req, res) => {
+  if (req.method !== 'GET') return res.status(404).end();
+  const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
+  const indoor = q.indoor === 'true' ? true : q.indoor === 'false' ? false : undefined;
+  const out = findSpots({ area: q.area, indoor });
+  res.status(out.error ? 400 : 200);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(out);
+};
 module.exports.findSpotsTool = findSpotsTool;
 module.exports.findSpots = findSpots;

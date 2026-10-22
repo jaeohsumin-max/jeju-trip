@@ -71,6 +71,15 @@
   .botwrap.wide{max-width:94%;width:94%}
   .cards{width:100%;display:flex;flex-direction:column;gap:8px}
   .card{display:flex;gap:10px;align-items:flex-start;background:#fff;border:2px solid var(--line);border-radius:16px;padding:12px}
+  /* 생각 과정 보기 (접힘이 기본) */
+  .think{width:100%;background:#fff;border:2px dashed var(--line);border-radius:14px}
+  .think summary{list-style:none;cursor:pointer;padding:10px 14px;min-height:44px;display:flex;align-items:center;
+    justify-content:space-between;font-size:.95rem;font-weight:800;color:var(--orange-d)}
+  .think summary::-webkit-details-marker{display:none}
+  .think summary::after{content:"▾";transition:transform .2s}
+  .think[open] summary::after{transform:rotate(180deg)}
+  .think ol{margin:0;padding:0 14px 12px;list-style:none;font-size:.92rem;line-height:1.5}
+  .think li{margin-top:4px}
   .card{cursor:pointer;transition:.15s}
   .card.on{border-color:var(--orange);background:#fff8ef}
   /* 지도 (Leaflet) */
@@ -173,13 +182,15 @@
     chat.appendChild(d);scrollDown();
   }
   // 에이전트 말풍선 (연습 모드면 말풍선 위에 작은 '연습 모드' 표시)
-  function addBot(t,practice,itinerary){
+  function addBot(t,practice,itinerary,steps){
     const wrap=document.createElement('div');wrap.className='botwrap';
     if(practice){const tag=document.createElement('span');tag.className='mode-tag';tag.textContent='연습 모드';wrap.appendChild(tag)}
     const d=document.createElement('div');d.className='msg bot';d.textContent=t;
     wrap.appendChild(d);
+    const hasCards=itinerary&&itinerary.length;
+    if(Array.isArray(steps)){wrap.classList.add('wide');wrap.appendChild(makeThink(steps,hasCards?itinerary.length:0))}
     let cards=null;
-    if(itinerary&&itinerary.length){wrap.classList.add('wide');cards=makeCards(itinerary);wrap.appendChild(cards)}
+    if(hasCards){wrap.classList.add('wide');cards=makeCards(itinerary);wrap.appendChild(cards)}
     chat.appendChild(wrap);
     if(cards)addMap(wrap,itinerary,cards); // 지도는 화면에 붙은 뒤에 만들어야 크기를 알 수 있어요
     scrollDown();
@@ -212,6 +223,23 @@
       if(p)map.setView([p.s.lat,p.s.lng],Math.max(map.getZoom(),12));
     }));
     map.fitBounds(L.latLngBounds(pts.map(p=>[p.s.lat,p.s.lng])),{padding:[30,30],maxZoom:12});
+  }
+  // 생각 과정 보기: 서버가 기록한 실제 도구 호출만 한 줄씩 보여 줘요 (지어낸 설명 없음)
+  const TOOL_LABEL={find_spots:'장소 찾기',get_weather:'날씨 보기'};
+  const NUMS=['①','②','③','④','⑤','⑥'];
+  function makeThink(steps,picked){
+    const det=document.createElement('details');det.className='think';
+    const sum=document.createElement('summary');sum.textContent='생각 과정 보기';det.appendChild(sum);
+    const ol=document.createElement('ol');
+    const lines=steps.slice(0,6).map((s,i)=>{
+      const label=TOOL_LABEL[s&&s.tool]||'도구 사용';
+      const area=s&&s.input&&typeof s.input.region==='string'?s.input.region+' ':'';
+      return NUMS[i]+' '+area+label+' → '+String((s&&s.summary)||'').slice(0,120);
+    });
+    if(!lines.length)lines.push('도구를 쓰지 않고 바로 답했어요');
+    else if(picked)lines.push('→ 결과를 보고 '+picked+'곳을 골랐어요');
+    lines.forEach(l=>{const li=document.createElement('li');li.textContent=l;ol.appendChild(li)});
+    det.appendChild(ol);return det;
   }
   // 일정 카드: 서버가 준 값은 전부 textContent 로만 넣어요
   function makeCards(items){
@@ -269,7 +297,7 @@
     const a=await callApi('/api/agent',question,profile,60000);
     if(a)return {text:a.text.trim(),itinerary:Array.isArray(a.itinerary)?a.itinerary.slice(0,3):[],steps:Array.isArray(a.steps)?a.steps:[]};
     const r=await callApi('/api/recommend',question,profile,30000);
-    if(r)return {text:r.text.trim(),itinerary:[],steps:[]};
+    if(r)return {text:r.text.trim(),itinerary:[],steps:null}; // 도구 기록이 없으면 '생각 과정'도 안 보여요
     return {practice:true};
   }
 
@@ -286,7 +314,7 @@
       const [res]=await Promise.all([ask(t),new Promise(r=>setTimeout(r,1000))]);
       dots.remove();
       if(res.practice){addBot(fakeReplies[fakeN%fakeReplies.length],true);fakeN++}
-      else addBot(res.text,false,res.itinerary);
+      else addBot(res.text,false,res.itinerary,res.steps);
     }finally{busy=false}
   }
   document.getElementById('form').onsubmit=e=>{e.preventDefault();if(busy)return;const v=text.value;if(!v.trim())return;text.value='';send(v)};
