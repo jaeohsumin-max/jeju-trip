@@ -66,6 +66,19 @@
   .botwrap{align-self:flex-start;max-width:78%;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
   .botwrap .msg{max-width:100%}
   .mode-tag{padding:2px 12px;border-radius:999px;background:var(--line);color:#6b5444;font-size:1rem;line-height:1.4;font-weight:700}
+  /* 일정 카드 (답변 아래에 최대 3장) */
+  .botwrap.wide{max-width:94%;width:94%}
+  .cards{width:100%;display:flex;flex-direction:column;gap:8px}
+  .card{display:flex;gap:10px;align-items:flex-start;background:#fff;border:2px solid var(--line);border-radius:16px;padding:12px}
+  .card .no{flex:none;width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;font-weight:800;
+    display:flex;align-items:center;justify-content:center}
+  .card .body{min-width:0;flex:1}
+  .card .name{margin:0;font-size:1.1rem;font-weight:800}
+  .card .meta{margin:2px 0 0;font-size:.85rem;color:#8a7c70}
+  .card .why{margin:6px 0 0;font-size:1rem;line-height:1.45}
+  .card .rain{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:700}
+  .card .rain.ok{background:#e3f4e8;color:#23683a}
+  .card .rain.care{background:var(--line);color:#6b5444}
   .bot{align-self:flex-start;background:var(--orange-l);border:2px solid var(--line);border-bottom-left-radius:6px}
   .me{align-self:flex-end;background:var(--orange);color:#fff;border-bottom-right-radius:6px}
 
@@ -151,11 +164,29 @@
     chat.appendChild(d);scrollDown();
   }
   // 에이전트 말풍선 (연습 모드면 말풍선 위에 작은 '연습 모드' 표시)
-  function addBot(t,practice){
+  function addBot(t,practice,itinerary){
     const wrap=document.createElement('div');wrap.className='botwrap';
     if(practice){const tag=document.createElement('span');tag.className='mode-tag';tag.textContent='연습 모드';wrap.appendChild(tag)}
     const d=document.createElement('div');d.className='msg bot';d.textContent=t;
-    wrap.appendChild(d);chat.appendChild(wrap);scrollDown();
+    wrap.appendChild(d);
+    if(itinerary&&itinerary.length){wrap.classList.add('wide');wrap.appendChild(makeCards(itinerary))}
+    chat.appendChild(wrap);scrollDown();
+  }
+  // 일정 카드: 서버가 준 값은 전부 textContent 로만 넣어요
+  function makeCards(items){
+    const box=document.createElement('div');box.className='cards';
+    items.forEach((s,i)=>{
+      const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e};
+      const card=el('div','card');card.dataset.id=String(s.id||'');
+      const body=el('div','body');
+      body.appendChild(el('p','name',String(s.name||'')));
+      const meta=[s.region,s.type,s.duration_min?('약 '+s.duration_min+'분'):'',s.difficulty].filter(Boolean).join(' · ');
+      body.appendChild(el('p','meta',meta));
+      if(s.reason)body.appendChild(el('p','why',String(s.reason)));
+      body.appendChild(el('span','rain '+(s.rain_ok?'ok':'care'),s.rain_ok?'비 와도 가능':'비 오면 조심'));
+      card.appendChild(el('div','no',String(i+1)));card.appendChild(body);box.appendChild(card);
+    });
+    return box;
   }
 
   // 2일차 가짜 답변 3개: 연습 모드이거나 호출이 실패했을 때만 차례로 돌려 써요 (진짜 AI 아님)
@@ -179,19 +210,26 @@
     return {style:[],pace:'',with:''};
   }
 
-  // /api/recommend 호출. 진짜 답이면 {text}, 연습 모드·실패면 {practice:true}
-  async function ask(question){
-    const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),30000);
+  // 주소 하나에 묻기. 진짜 답이면 서버가 준 값, 아니면 null
+  async function callApi(url,question,profile,ms){
+    const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),ms);
     try{
-      const profile=await getProfile();
-      const r=await fetch('/api/recommend',{method:'POST',headers:{'Content-Type':'application/json'},
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({question:question.slice(0,300),profile}),signal:ctl.signal});
-      if(!r.ok)return {practice:true};
+      if(!r.ok)return null;
       const d=await r.json();
-      if(d&&d.mode==='live'&&typeof d.text==='string'&&d.text.trim())return {text:d.text.trim()};
-      return {practice:true};
-    }catch(e){return {practice:true}}
+      return d&&d.mode==='live'&&typeof d.text==='string'&&d.text.trim()?d:null;
+    }catch(e){return null}
     finally{clearTimeout(timer)}
+  }
+  // 먼저 /api/agent(도구를 쓰는 에이전트), 안 되면 /api/recommend, 그래도 안 되면 연습 모드
+  async function ask(question){
+    const profile=await getProfile();
+    const a=await callApi('/api/agent',question,profile,60000);
+    if(a)return {text:a.text.trim(),itinerary:Array.isArray(a.itinerary)?a.itinerary.slice(0,3):[],steps:Array.isArray(a.steps)?a.steps:[]};
+    const r=await callApi('/api/recommend',question,profile,30000);
+    if(r)return {text:r.text.trim(),itinerary:[],steps:[]};
+    return {practice:true};
   }
 
   let busy=false;
@@ -207,7 +245,7 @@
       const [res]=await Promise.all([ask(t),new Promise(r=>setTimeout(r,1000))]);
       dots.remove();
       if(res.practice){addBot(fakeReplies[fakeN%fakeReplies.length],true);fakeN++}
-      else addBot(res.text,false);
+      else addBot(res.text,false,res.itinerary);
     }finally{busy=false}
   }
   document.getElementById('form').onsubmit=e=>{e.preventDefault();if(busy)return;const v=text.value;if(!v.trim())return;text.value='';send(v)};
