@@ -1,9 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { useTitle, PROFILE_KEY } from '../lib.js';
 import './Agent.css';
+
+// 지도 라이브러리(Leaflet 1.9.4)는 unpkg 에서 지도가 필요할 때 한 번만 불러와요.
+// integrity 값은 받은 파일이 그대로인지 확인하는 해시예요 (다르면 브라우저가 막아요).
+const LEAFLET_BASE = 'https://unpkg.com/leaflet@1.9.4/dist/';
+const LEAFLET_CSS_SRI = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+const LEAFLET_JS_SRI = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+let leafletPromise = null;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (!leafletPromise) {
+    leafletPromise = new Promise((resolve) => {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = LEAFLET_BASE + 'leaflet.css';
+      css.integrity = LEAFLET_CSS_SRI;
+      css.crossOrigin = '';
+      document.head.appendChild(css);
+      const js = document.createElement('script');
+      js.src = LEAFLET_BASE + 'leaflet.js';
+      js.integrity = LEAFLET_JS_SRI;
+      js.crossOrigin = '';
+      js.onload = () => resolve(window.L || null);
+      js.onerror = () => {
+        leafletPromise = null; // 다음 답변에서 다시 시도해요
+        css.remove();
+        js.remove();
+        resolve(null);
+      };
+      document.head.appendChild(js);
+      setTimeout(() => resolve(window.L || null), 10000); // 너무 오래 걸리면 못 불러온 걸로 봐요
+    });
+  }
+  return leafletPromise;
+}
 
 const ENC = 'http://encykorea.aks.ac.kr/Contents/Item/E0068824';
 const ABOUT = [
@@ -80,7 +112,9 @@ async function ask(question) {
   if (!a) return { practice: true };
   return {
     text: a.text.trim(),
-    itinerary: Array.isArray(a.itinerary) ? a.itinerary.slice(0, 3) : [],
+    judge: typeof a.judge === 'string' ? a.judge.trim() : '',
+    tip: typeof a.tip === 'string' ? a.tip.trim() : '',
+    places: Array.isArray(a.places) ? a.places.slice(0, 3) : [],
     steps: Array.isArray(a.steps) ? a.steps : [],
     demo: a.mode === 'practice', // 서버가 열쇠 없이 규칙으로 만든 결과면 '연습 모드' 표시
   };
@@ -111,37 +145,93 @@ function Think({ steps }) {
   );
 }
 
-// 지도 핀: 번호 = 카드 번호. 핀을 누르면 카드가, 카드를 누르면 핀이 강조돼요 (답변마다 지도 하나)
-function SpotMap({ items, selected, onPick, focusRef }) {
+// 지도: places 의 좌표로 번호 핀(카드 번호와 같아요)을 찍고 순서대로 점선으로 이어요.
+// 핀을 누르면 카드가, 카드를 누르면 핀이 강조돼요. 지도를 못 불러오면 안내 한 줄만 보여 줘요.
+function PlaceMap({ places, selected, onPick, focusRef }) {
   const divRef = useRef(null);
-  const markersRef = useRef([]);
   const mapRef = useRef(null);
+  const markersRef = useRef([]);
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
+  const [failed, setFailed] = useState(false);
+
+  // 목록에 있고 좌표가 있는 장소만 핀을 찍어요 (번호는 카드 순서 그대로)
+  const pts = places.map((p, i) => ({ p, i })).filter(({ p }) => p.inList && Number.isFinite(p.lat) && Number.isFinite(p.lng));
 
   useEffect(() => {
-    const pts = items.map((s, i) => ({ s, i })).filter((p) => Number.isFinite(p.s.lat) && Number.isFinite(p.s.lng));
     if (!pts.length) return undefined;
-    const map = L.map(divRef.current, { scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false, zoomControl: true });
-    mapRef.current = map;
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
-    markersRef.current = [];
-    pts.forEach(({ s, i }) => {
-      const icon = L.divIcon({ className: '', html: '<div class="pin">' + (i + 1) + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
-      const m = L.marker([s.lat, s.lng], { icon, title: String(s.name || '') }).addTo(map);
-      m.on('click', () => pickRef.current(i, true));
-      markersRef.current[i] = m;
+    let dead = false;
+    let map = null;
+    let timer = null;
+    setFailed(false);
+    const fail = () => {
+      if (dead) return;
+      clearTimeout(timer);
+      if (map) map.remove();
+      map = null;
+      mapRef.current = null;
+      markersRef.current = [];
+      setFailed(true);
+    };
+    loadLeaflet().then((L) => {
+      if (dead) return;
+      if (!L || !divRef.current) {
+        fail();
+        return;
+      }
+      try {
+        map = L.map(divRef.current, {
+          scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false, zoomControl: true, attributionControl: false,
+        });
+        mapRef.current = map;
+        let loaded = false;
+        let errors = 0;
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 })
+          .on('tileload', () => { loaded = true; })
+          .on('tileerror', () => { errors += 1; })
+          .addTo(map);
+        markersRef.current = [];
+        pts.forEach(({ p, i }) => {
+          const icon = L.divIcon({ className: '', html: '<div class="pin">' + (i + 1) + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
+          const m = L.marker([p.lat, p.lng], { icon, title: String(p.name || '') }).addTo(map);
+          m.on('click', () => pickRef.current(i, true));
+          markersRef.current[i] = m;
+        });
+        const latlngs = pts.map(({ p }) => [p.lat, p.lng]);
+        const line = latlngs.length > 1 ? L.polyline(latlngs, { color: '#ff8a1f', weight: 3, dashArray: '6 6' }).addTo(map) : null;
+        map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30], maxZoom: 12 });
+        // 가까운 장소는 핀이 겹쳐 번호가 가려져요. 화면 위에서 30px 안에 다른 핀이 있으면 옆으로 살짝 밀어요
+        // (많이 확대하면 저절로 떨어져요. 선도 밀린 핀을 따라가요. 그래서 '핀은 근사 위치'예요)
+        const spread = () => {
+          const size = map.getSize();
+          const placed = [];
+          const moves = [[0, 0], [34, 0], [-34, 0], [0, -34], [0, 34], [34, 34], [-34, 34], [34, -34], [-34, -34]];
+          pts.forEach(({ p, i }) => {
+            const base = map.latLngToContainerPoint([p.lat, p.lng]);
+            const spot = moves.map(([dx, dy]) => L.point(base.x + dx, base.y + dy)).find((c) => (
+              c.x >= 16 && c.x <= size.x - 16 && c.y >= 16 && c.y <= size.y - 16 && placed.every((q) => c.distanceTo(q) >= 32)
+            )) || base;
+            placed.push(spot);
+            markersRef.current[i].setLatLng(map.containerPointToLatLng(spot));
+          });
+          if (line) line.setLatLngs(pts.map(({ i }) => markersRef.current[i].getLatLng()));
+        };
+        map.on('zoomend', spread);
+        spread();
+        // 타일이 하나도 안 오고 오류만 나면 지도를 못 불러온 걸로 봐요
+        timer = setTimeout(() => { if (!loaded && errors > 0) fail(); }, 8000);
+      } catch (e) {
+        fail();
+      }
     });
-    map.fitBounds(L.latLngBounds(pts.map((p) => [p.s.lat, p.s.lng])), { padding: [30, 30], maxZoom: 12 });
     return () => {
-      map.remove();
+      dead = true;
+      clearTimeout(timer);
+      if (map) map.remove();
       mapRef.current = null;
       markersRef.current = [];
     };
-  }, [items]);
+  }, [places]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 선택한 핀 강조 + (카드를 눌렀을 때) 그 장소로 이동
   useEffect(() => {
@@ -149,18 +239,28 @@ function SpotMap({ items, selected, onPick, focusRef }) {
       const e = m && m.getElement();
       if (e && e.firstChild) e.firstChild.classList.toggle('on', k === selected);
     });
-    const s = items[selected];
-    if (focusRef.current && mapRef.current && s && Number.isFinite(s.lat) && Number.isFinite(s.lng)) {
-      mapRef.current.setView([s.lat, s.lng], Math.max(mapRef.current.getZoom(), 12));
+    const p = places[selected];
+    if (focusRef.current && mapRef.current && p && Number.isFinite(p.lat) && Number.isFinite(p.lng)) {
+      mapRef.current.setView([p.lat, p.lng], Math.max(mapRef.current.getZoom(), 12));
     }
     focusRef.current = false;
-  }, [selected, items, focusRef]);
+  }, [selected, places, focusRef]);
 
-  return <div className="map" ref={divRef} role="img" aria-label="추천 장소 지도" />;
+  if (!pts.length) return null;
+  if (failed) return <p className="map-fail">지도를 불러오지 못했어요</p>;
+  return (
+    <>
+      <div className="map" ref={divRef} role="img" aria-label="추천 장소 지도" />
+      <p className="map-note">
+        © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap 기여자</a>
+        <br />핀은 근사 위치
+      </p>
+    </>
+  );
 }
 
-// 일정 카드 + 지도: 서버가 준 값은 전부 글자로만 넣어요 (React 가 알아서 막아 줘요)
-function Itinerary({ items }) {
+// 일정 카드 3장 + 지도: 서버가 준 값은 전부 글자로만 넣어요 (React 가 알아서 막아 줘요)
+function Plan({ places }) {
   const [selected, setSelected] = useState(-1);
   const focusRef = useRef(false); // true 면 카드를 눌러서 바뀐 것 → 지도를 그 장소로 옮겨요
   const cardRefs = useRef([]);
@@ -173,43 +273,53 @@ function Itinerary({ items }) {
 
   return (
     <>
+      <PlaceMap places={places} selected={selected} onPick={pick} focusRef={focusRef} />
       <div className="cards">
-        {items.map((s, i) => {
-          const meta = [s.region, s.type, s.duration_min ? '약 ' + s.duration_min + '분' : '', s.difficulty].filter(Boolean).join(' · ');
-          return (
-            <div
-              className={'card' + (selected === i ? ' on' : '')}
-              key={String(s.id || i)}
-              data-id={String(s.id || '')}
-              ref={(el) => { cardRefs.current[i] = el; }}
-              onClick={() => pick(i, false)}
-            >
-              <div className="no">{i + 1}</div>
-              <div className="body">
-                <p className="name">{String(s.name || '')}</p>
-                <p className="meta">{meta}</p>
-                {s.reason && <p className="why">{String(s.reason)}</p>}
-                <span className={'rain ' + (s.rain_ok ? 'ok' : 'care')}>{s.rain_ok ? '비 와도 가능' : '비 오면 조심'}</span>
-              </div>
+        {places.map((p, i) => (
+          <div
+            className={'card' + (selected === i ? ' on' : '')}
+            key={String(p.id || p.name || i)}
+            ref={(el) => { cardRefs.current[i] = el; }}
+            onClick={() => pick(i, false)}
+          >
+            <div className="no">{i + 1}</div>
+            <div className="body">
+              <p className="name">
+                {String(p.name || '')}
+                {' · '}
+                {p.inList
+                  ? <span className="where">{p.indoor ? '실내' : '야외'}</span>
+                  : <span className="check">직접 확인 ⚠</span>}
+              </p>
+              {p.why && <p className="why">{String(p.why)}</p>}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
-      <SpotMap items={items} selected={selected} onPick={pick} focusRef={focusRef} />
     </>
   );
 }
 
-// 에이전트 말풍선 (연습 모드면 말풍선 위에 작은 '연습 모드' 표시)
+// 에이전트 답: ① judge 한 줄(보라) ② 지도 ③ 일정 카드 ④ 생각 과정 보기
+// (장소가 없는 답은 글 말풍선만 보여 줘요. 연습 모드면 맨 위에 작은 '연습 모드' 표시)
 function Bot({ m }) {
-  const items = m.itinerary || [];
-  const wide = Array.isArray(m.steps) || items.length > 0;
+  const places = m.places || [];
+  const hasPlaces = places.length > 0;
+  const wide = hasPlaces || Array.isArray(m.steps);
   return (
     <div className={'botwrap' + (wide ? ' wide' : '')}>
       {m.practice && <span className="mode-tag">연습 모드</span>}
-      <div className="msg bot">{m.text}</div>
+      {hasPlaces ? (
+        <>
+          {m.judge && <p className="answer-judge">{m.judge}</p>}
+          {m.tip && <p className="tip">{m.tip}</p>}
+          <Plan places={places} />
+        </>
+      ) : (
+        <div className="msg bot">{m.text}</div>
+      )}
       {Array.isArray(m.steps) && <Think steps={m.steps} />}
-      {items.length > 0 && <Itinerary items={items} />}
+      {hasPlaces && <p className="notice">방문 전 운영 여부를 확인하세요</p>}
     </div>
   );
 }
@@ -229,7 +339,15 @@ export default function Agent() {
 
   useEffect(() => {
     const el = chatRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const lastMsg = messages[messages.length - 1];
+    const last = el.lastElementChild;
+    if (!typing && lastMsg && lastMsg.who === 'bot' && lastMsg.places && lastMsg.places.length > 0 && last && last.classList.contains('botwrap')) {
+      // 장소 답은 길어서, 맨 아래가 아니라 답의 맨 위(judge 한 줄)부터 보이게 해요
+      el.scrollTop += last.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages, typing]);
 
   async function send(t) {
@@ -242,7 +360,7 @@ export default function Agent() {
       const [res] = await Promise.all([ask(t), new Promise((r) => setTimeout(r, 1000))]);
       const bot = res.practice
         ? { who: 'bot', text: FAKE_REPLIES[fakeN.current++ % FAKE_REPLIES.length], practice: true }
-        : { who: 'bot', text: res.text, itinerary: res.itinerary, steps: res.steps, practice: res.demo };
+        : { who: 'bot', text: res.text, judge: res.judge, tip: res.tip, places: res.places, steps: res.steps, practice: res.demo };
       setMessages((ms) => [...ms, { id: nextId.current++, ...bot }]);
     } finally {
       setTyping(false);
@@ -289,7 +407,7 @@ export default function Agent() {
         <main id="chat" ref={chatRef}>
           {messages.map((m) => (m.who === 'me'
             ? <div className="msg me" key={m.id}>{m.text}</div>
-            : m.practice || m.steps !== undefined || m.itinerary
+            : m.practice || m.steps !== undefined || m.places
               ? <Bot m={m} key={m.id} />
               : <div className="msg bot" key={m.id}>{m.text}</div>))}
           {typing && (
