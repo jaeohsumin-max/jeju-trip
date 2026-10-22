@@ -8,6 +8,12 @@
     },
     "caution": "좌표는 대략값이고 rain_ok·difficulty·duration_min은 일반적인 기준으로 적은 값입니다. 운영 시간·휴관·탐방 통제는 담지 않았으니 방문 전 확인이 필요합니다."
   },
+  "areas": {
+    "동쪽": { "lat": 33.46, "lng": 126.88 },
+    "서쪽": { "lat": 33.39, "lng": 126.28 },
+    "서귀포": { "lat": 33.25, "lng": 126.56 },
+    "제주시": { "lat": 33.51, "lng": 126.53 }
+  },
   "spots": [
     { "id": "seongsan-ilchulbong", "name": "성산일출봉", "region": "동쪽", "type": "오름", "lat": 33.4580, "lng": 126.9425, "duration_min": 90, "difficulty": "보통", "indoor": false, "rain_ok": false, "note": "정상까지 계단이 이어짐. 비 오는 날은 미끄러움 (확인 필요)" },
     { "id": "seopjikoji", "name": "섭지코지", "region": "동쪽", "type": "바다", "lat": 33.4240, "lng": 126.9300, "duration_min": 60, "difficulty": "쉬움", "indoor": false, "rain_ok": false, "note": "탁 트인 해안 산책로. 바람이 센 편" },
