@@ -29,6 +29,13 @@
     border:2px solid var(--orange);background:#fff;color:var(--orange-d);font-weight:800;text-decoration:none}
   .home:active{background:#fff1e0}
   h1.second{margin-top:32px}
+  .pick{max-height:240px;overflow:auto;padding:8px 12px;background:#fff;border:2px solid var(--line);border-radius:12px;width:100%}
+  .pick b{display:block;margin:8px 0 2px;color:var(--orange-d)}
+  .pick label{flex-direction:row;align-items:center;gap:8px;font-weight:400;font-size:.95rem;min-height:36px}
+  .pick input{width:20px;height:20px}
+  #rform{flex-direction:column;align-items:stretch}
+  #rform button{align-self:flex-start}
+  .count{margin:0;font-size:.9rem;color:#8a7c70}
   details.json{margin-top:12px;font-size:.9rem}
   details.json summary{cursor:pointer;font-weight:800;color:var(--orange-d);min-height:36px;display:flex;align-items:center}
   details.json pre{margin:6px 0 0;padding:10px;max-height:260px;overflow:auto;background:#fff;border:2px solid var(--line);border-radius:12px;font-size:.8rem}
@@ -88,6 +95,23 @@
   </div>
   <details class="json" id="wrawbox" open hidden><summary>받은 JSON 데이터</summary><pre id="wraw"></pre></details>
   <div class="map" id="wmap" hidden role="img" aria-label="get_weather 지역 위치 지도"></div>
+
+  <h1 class="second">plan_route 시험</h1>
+  <p class="sub">가 볼 장소를 2~5곳 고르면 <code>/api/tools</code> 의 plan_route 가 이동 거리가 가장 짧은 순서를 찾아 줘요. 거리는 직선거리예요.</p>
+  <form id="rform">
+    <div class="pick" id="rpick">장소 목록 불러오는 중…</div>
+    <p id="rcount" class="count">0 / 5곳 선택</p>
+    <button type="submit">동선 짜기</button>
+  </form>
+  <p id="rstatus" role="status"></p>
+  <div class="wrap">
+    <table id="rtable" hidden>
+      <thead><tr><th>순서</th><th>장소</th><th>지역</th><th>앞 장소에서 (직선거리)</th></tr></thead>
+      <tbody id="rrows"></tbody>
+    </table>
+  </div>
+  <details class="json" id="rrawbox" open hidden><summary>받은 JSON 데이터</summary><pre id="rraw"></pre></details>
+  <div class="map" id="rmap" hidden role="img" aria-label="plan_route 방문 순서 지도"></div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
@@ -97,7 +121,7 @@
     document.getElementById(preId).textContent=JSON.stringify(data,null,2);
     document.getElementById(boxId).hidden=false;
   }
-  function drawMap(mapId,points){ // points: [{lat,lng,label,title,text}]
+  function drawMap(mapId,points,line){ // points: [{lat,lng,label,title,text}], line=true 면 순서대로 선으로 이어요
     const el=document.getElementById(mapId);
     const pts=points.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng));
     if(!window.L||!pts.length){el.hidden=true;return}
@@ -117,6 +141,7 @@
       if(p.text){pop.appendChild(document.createElement('br'));pop.appendChild(document.createTextNode(p.text))}
       L.marker([p.lat,p.lng],{icon,title:p.title}).bindPopup(pop).addTo(m.layer);
     });
+    if(line&&pts.length>1)L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#e56f00',weight:3,dashArray:'6 6'}).addTo(m.layer);
     m.map.invalidateSize();
     if(pts.length===1)m.map.setView([pts[0].lat,pts[0].lng],11);
     else m.map.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lng])),{padding:[30,30],maxZoom:12});
@@ -170,6 +195,60 @@
     }catch(e){wstatus.className='err';wstatus.textContent='불러오지 못했어요. 서버가 켜져 있는지 확인해 주세요.'}
   }
   document.getElementById('wform').onsubmit=e=>{e.preventDefault();runWeather()};
+
+  // ---- 동선 시험 ----
+  const MAX_PICK=5;
+  const rpick=document.getElementById('rpick'),rcount=document.getElementById('rcount');
+  const rstatus=document.getElementById('rstatus'),rtable=document.getElementById('rtable'),rrows=document.getElementById('rrows');
+  function updatePick(){
+    const boxes=[...rpick.querySelectorAll('input')];
+    const n=boxes.filter(b=>b.checked).length;
+    boxes.forEach(b=>{b.disabled=!b.checked&&n>=MAX_PICK});
+    rcount.textContent=n+' / '+MAX_PICK+'곳 선택';
+  }
+  // 장소 목록은 find_spots 로 지역마다 받아 와요
+  async function loadPicker(){
+    try{
+      const areas=['동쪽','서쪽','서귀포','제주시'];
+      const res=await Promise.all(areas.map(a=>fetch('/api/tools?area='+encodeURIComponent(a)).then(r=>r.json())));
+      rpick.textContent='';
+      res.forEach((d,i)=>{
+        if(!d.spots)return;
+        const h=document.createElement('b');h.textContent=areas[i];rpick.appendChild(h);
+        d.spots.forEach(s=>{
+          const l=document.createElement('label'),c=document.createElement('input');
+          c.type='checkbox';c.value=s.name;c.onchange=updatePick;
+          l.appendChild(c);l.appendChild(document.createTextNode(s.name));rpick.appendChild(l);
+        });
+      });
+      updatePick();
+    }catch(e){rpick.textContent='장소 목록을 불러오지 못했어요. 서버가 켜져 있는지 확인해 주세요.'}
+  }
+  async function runRoute(){
+    const picked=[...rpick.querySelectorAll('input:checked')].map(c=>c.value);
+    rstatus.className='';rtable.hidden=true;rrows.textContent='';
+    document.getElementById('rrawbox').hidden=true;document.getElementById('rmap').hidden=true;
+    if(picked.length<2){rstatus.className='err';rstatus.textContent='장소를 2곳 이상 골라 주세요.';return}
+    rstatus.textContent='계산하는 중…';
+    try{
+      const r=await fetch('/api/tools?'+new URLSearchParams({tool:'route',spots:picked.join(',')}));
+      const d=await r.json();
+      showJson('rrawbox','rraw',d);
+      if(!r.ok||!d.ok){rstatus.className='err';rstatus.textContent=(d&&d.note)||('오류: '+r.status);return}
+      d.order.forEach((o,i)=>{
+        const tr=document.createElement('tr');
+        [o.order,o.name,o.area,i===0?'출발':d.legs[i-1].distance_km+' km'].forEach(v=>{
+          const td=document.createElement('td');td.textContent=String(v);tr.appendChild(td);
+        });
+        rrows.appendChild(tr);
+      });
+      rtable.hidden=false;
+      rstatus.textContent='총 '+d.total_km+' km (직선거리) · '+d.note;
+      drawMap('rmap',d.order.map(o=>({lat:o.lat,lng:o.lng,label:o.order,title:o.name,text:o.area})),true);
+    }catch(e){rstatus.className='err';rstatus.textContent='불러오지 못했어요. 서버가 켜져 있는지 확인해 주세요.'}
+  }
+  document.getElementById('rform').onsubmit=e=>{e.preventDefault();runRoute()};
+  loadPicker();
 </script>
 </body>
 </html>
