@@ -26,6 +26,7 @@ export default function Landing() {
           <div className="btns">
             <Link className="btn" to="/agent">지금 물어보기</Link>
             <Link className="btn ghost" to="/photos">📷 제주 사진 · 🔍 검색 (Pixabay)</Link>
+            <Link className="btn ghost" to="/tree">🌳 과일 나무 · 과일 따기</Link>
           </div>
           <Link className="sublink" to="/profile">내 여행 취향 알려 주기</Link>
           {/* tools_test.html 은 React 화면이 아니라 따로 있는 html 이라 일반 링크로 열어요 */}

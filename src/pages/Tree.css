@@ -1,0 +1,67 @@
+/* 과일 나무 화면 */
+.p-tree{--orange:#ff8a1f;--orange-d:#e56f00;--line:#f0dcc4;--ink:#2f2a26;min-height:100dvh;display:flex;justify-content:center;
+  background:#e9eef2;color:var(--ink);word-break:keep-all;font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+.p-tree .tphone{width:100%;max-width:402px;height:100dvh;max-height:874px;margin:auto 0;background:#fffaf4;display:flex;flex-direction:column;overflow:hidden;position:relative}
+@media(min-width:430px){.p-tree .tphone{border-radius:28px;box-shadow:0 12px 40px #00000026;height:min(100dvh,874px)}}
+
+.p-tree .thead{flex:none;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;background:var(--orange);color:#fff}
+.p-tree .thead h1{margin:0;font-size:1.3rem}
+.p-tree .tback{min-width:48px;min-height:48px;display:flex;align-items:center;justify-content:center;color:#3a2b22;text-decoration:none;font-size:2.2rem;line-height:1;border-radius:14px;font-weight:700}
+.p-tree .tback:active{background:#ffffff40}
+.p-tree .treset{min-height:44px;padding:0 12px;border:0;border-radius:14px;background:#ffffff59;color:#3a2b22;font:inherit;font-size:.95rem;font-weight:800;cursor:pointer}
+.p-tree .treset:active{background:#ffffff99}
+.p-tree button:focus-visible,.p-tree a:focus-visible,.p-tree input:focus-visible{outline:3px solid #7b3fc4;outline-offset:2px}
+
+.p-tree .tsearch{flex:none;display:flex;gap:8px;padding:10px 12px 0}
+.p-tree .tsearch input{flex:1;min-width:0;height:48px;padding:0 14px;border:2px solid var(--line);border-radius:14px;font-size:1rem;font-family:inherit;background:#fff}
+.p-tree .tsearch input:focus{border-color:var(--orange)}
+.p-tree .tsearch button{flex:none;width:52px;height:48px;border:0;border-radius:14px;background:var(--orange);color:#fff;font-size:1.3rem;cursor:pointer}
+.p-tree .tsearch button:active{background:var(--orange-d)}
+
+.p-tree .tchips{flex:none;display:flex;gap:6px;overflow-x:auto;padding:8px 12px;scrollbar-width:none}
+.p-tree .tchips::-webkit-scrollbar{display:none}
+.p-tree .tchips button{flex:none;min-height:36px;padding:0 12px;border:2px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);font:inherit;font-size:.9rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.p-tree .tchips button.on{border-color:var(--orange);background:#fff1e0;color:var(--orange-d)}
+
+/* 추천 사진 10장 (5칸 x 2줄) */
+.p-tree .ttray{flex:none;padding:0 12px 4px}
+.p-tree .thint{margin:0 0 6px;font-size:.78rem;color:#8a7c70;text-align:center}
+.p-tree .tnote{margin:6px 0 4px;padding:10px;border:2px dashed var(--line);border-radius:12px;background:#fff;text-align:center;font-size:.95rem;color:#6b5444}
+.p-tree .tgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.p-tree .cand{position:relative;aspect-ratio:1 / 1;padding:0;border:0;border-radius:12px;overflow:hidden;background:#f0e4d4;cursor:pointer;box-shadow:0 2px 6px #00000026;transition:transform .15s}
+.p-tree .cand:hover{transform:translateY(-2px) scale(1.04)}
+.p-tree .cand:active{transform:scale(.96)}
+.p-tree .cand img{width:100%;height:100%;object-fit:cover;display:block}
+.p-tree .cand.sk{cursor:default;background:linear-gradient(100deg,#f0e4d4 30%,#faf1e4 50%,#f0e4d4 70%);background-size:200% 100%;animation:t-shine 1.2s infinite linear}
+@keyframes t-shine{from{background-position:200% 0}to{background-position:-200% 0}}
+.p-tree .scissor{position:absolute;left:3px;bottom:3px;width:20px;height:20px;border-radius:50%;background:#fff;color:#7b3fc4;font-size:.75rem;line-height:20px;text-align:center;box-shadow:0 1px 3px #0004}
+.p-tree .done{position:absolute;right:2px;top:2px;min-width:20px;height:20px;padding:0 3px;border-radius:999px;background:#ffffffdd;font-size:.7rem;line-height:20px;text-align:center}
+.p-tree .tcredit{margin:4px 0 0;text-align:center;font-size:.72rem;color:#8a7c70}
+.p-tree .tcredit a{color:#1f6f9c}
+
+/* 큰 나무 */
+.p-tree .tstage{position:relative;flex:1;min-height:200px;display:flex}
+.p-tree .tsvg{width:100%;height:100%;display:block}
+.p-tree .ttoast{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:max-content;max-width:94%;margin:0;padding:9px 16px;border-radius:999px;background:#fff;
+  border:2px solid #7b3fc4;color:#5a2a99;font-size:.95rem;font-weight:800;text-align:center;box-shadow:0 4px 14px #0003;pointer-events:none;z-index:3;
+  animation:t-toast .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes t-toast{from{opacity:0;transform:translateX(-50%) translateY(-8px) scale(.9)}to{opacity:1;transform:translateX(-50%)}}
+
+/* 과일: 달리면서 통통 튀고, 가만히 있을 땐 살랑살랑, 누르면 바구니로 날아가요 */
+.p-tree .fruit-in{cursor:pointer;transform-box:fill-box;transform-origin:50% 50%;outline:none}
+.p-tree .fruit-in:hover{filter:brightness(1.06)}
+.p-tree .fruit-in:focus-visible{filter:drop-shadow(0 0 4px #7b3fc4)}
+.p-tree .sway{transform-origin:0 -30px;animation:tree-sway 3.2s ease-in-out infinite}
+.p-tree .pop{animation:tree-pop .55s cubic-bezier(.2,1.6,.4,1) both}
+.p-tree .fly{animation:tree-fly .75s cubic-bezier(.5,0,.8,.6) forwards;pointer-events:none}
+@keyframes tree-sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes tree-pop{from{transform:scale(0) rotate(-30deg)}to{transform:scale(1) rotate(0)}}
+@keyframes tree-fly{0%{transform:translate(0,0) scale(1) rotate(0)}35%{transform:translate(calc(var(--dx) * .1),-26px) scale(1.15) rotate(-14deg)}100%{transform:translate(var(--dx),var(--dy)) scale(.5) rotate(300deg)}}
+.p-tree .spark{animation:t-spark .8s ease-out forwards;pointer-events:none}
+@keyframes t-spark{from{opacity:1;transform:translate(0,0) scale(.6)}to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.4)}}
+.p-tree .bump{transform-box:fill-box;transform-origin:50% 100%;animation:t-bump .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes t-bump{0%{transform:scale(1)}40%{transform:scale(1.12,.9)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){
+  .p-tree .sway,.p-tree .pop,.p-tree .bump,.p-tree .cand.sk,.p-tree .ttoast,.p-tree .spark{animation:none}
+  .p-tree .fly{animation-duration:.01s}
+}

@@ -1,10 +1,23 @@
 {
   "functions": {
-    "api/agent.js": { "maxDuration": 60, "includeFiles": "data/**" },
-    "api/recommend.js": { "maxDuration": 30 },
-    "api/tools.js": { "includeFiles": "data/**" }
+    "api/agent.js": {
+      "maxDuration": 60,
+      "includeFiles": "data/**"
+    },
+    "api/recommend.js": {
+      "maxDuration": 30
+    },
+    "api/tools.js": {
+      "includeFiles": "data/**"
+    },
+    "api/photos.js": {
+      "includeFiles": "data/**"
+    }
   },
   "rewrites": [
-    { "source": "/((?!api/|images/|assets/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/|images/|assets/).*)",
+      "destination": "/index.html"
+    }
   ]
 }
