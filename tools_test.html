@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>find_spots 시험</title>
+<style>
+  :root { --bg: #F3F7FD; --card: #fff; --ink: #1b2a41; --muted: #5a6b85; --main: #1D5FD1; --main-dark: #14449a; --main-soft: #E3ECFA; --point: #F28C28; --line: #D8E2F3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px 16px; background: var(--bg); color: var(--ink); font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif; }
+  main { max-width: 640px; margin: 0 auto; background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 0 40px rgba(29,95,209,.10); }
+  h1 { margin: 0 0 4px; font-size: 20px; color: var(--main); }
+  p.note { margin: 0 0 16px; font-size: 12px; color: var(--muted); }
+  form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 16px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  select, button { font: inherit; font-size: 14px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+  button { background: var(--main); border-color: var(--main); color: #fff; font-weight: 600; cursor: pointer; }
+  button:hover { background: var(--main-dark); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { font-size: 12px; color: var(--muted); }
+  .in { color: var(--main-dark); font-weight: 600; }
+  .out { color: var(--point); font-weight: 600; }
+  #status { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  details { margin-top: 14px; font-size: 12px; }
+  pre { overflow: auto; background: var(--bg); padding: 10px; border-radius: 8px; }
+  .home { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--main); background: #fff; color: var(--main); font-weight: 600; text-decoration: none; }
+  .home:hover { background: var(--main-soft); }
+</style>
+</head>
+<body>
+<main>
+  <a class="home" href="/">← 메인으로</a>
+  <h1>find_spots 시험</h1>
+  <p class="note">api/tools.js 의 findSpots 를 서버에서 그대로 불러요. <code>node tools/dev_server.js</code> 로 연 뒤 이 페이지를 보세요.</p>
+  <form id="form">
+    <label>지역
+      <select id="area">
+        <option>동쪽</option><option>서쪽</option><option>서귀포</option><option>제주시</option>
+      </select>
+    </label>
+    <label>실내 여부
+      <select id="indoor">
+        <option value="">상관없음 (생략)</option>
+        <option value="true">실내만</option>
+        <option value="false">야외만</option>
+      </select>
+    </label>
+    <button type="submit">찾기</button>
+  </form>
+  <p id="status" role="status"></p>
+  <table>
+    <thead><tr><th>이름</th><th>지역</th><th>실내</th><th>설명</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <details><summary>받은 JSON 보기</summary><pre id="raw"></pre></details>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  async function run() {
+    const q = new URLSearchParams({ area: $('area').value });
+    if ($('indoor').value) q.set('indoor', $('indoor').value);
+    $('rows').textContent = '';
+    try {
+      const r = await fetch('/api/find_spots?' + q);
+      const d = await r.json();
+      $('raw').textContent = JSON.stringify(d, null, 1);
+      if (d.error) { $('status').textContent = d.error; return; }
+      $('status').textContent = d.area + ' · ' + d.count + '곳';
+      for (const s of d.spots) {
+        const tr = document.createElement('tr');
+        [s.name, s.area, s.indoor ? '실내' : '야외', s.desc].forEach((t, i) => {
+          const td = document.createElement('td');
+          td.textContent = t;
+          if (i === 2) td.className = s.indoor ? 'in' : 'out';
+          tr.appendChild(td);
+        });
+        $('rows').appendChild(tr);
+      }
+    } catch (e) {
+      $('status').textContent = '불러오지 못했어요. dev_server.js 가 켜져 있는지 확인하세요.';
+    }
+  }
+  $('form').addEventListener('submit', e => { e.preventDefault(); run(); });
+</script>
+</body>
+</html>

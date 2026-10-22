@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTitle } from '../lib.js';
 import './ToolsTest.css';
 
@@ -38,6 +39,7 @@ export default function ToolsTest() {
   return (
     <div className="p-tools">
       <main>
+        <Link className="home" to="/">← 메인으로</Link>
         <h1>find_spots 시험</h1>
         <p className="sub">지역과 실내 여부를 고르면 <code>/api/tools</code> 의 find_spots 를 그대로 불러서 결과를 표로 보여 줘요.</p>
         <form onSubmit={run}>

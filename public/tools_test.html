@@ -24,10 +24,14 @@
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:.95rem;vertical-align:top}
   th{background:#fff1e0;white-space:nowrap}
   tr:last-child td{border-bottom:0}
+  .home{display:inline-flex;align-items:center;min-height:44px;margin-bottom:8px;padding:0 16px;border-radius:999px;
+    border:2px solid var(--orange);background:#fff;color:var(--orange-d);font-weight:800;text-decoration:none}
+  .home:active{background:#fff1e0}
 </style>
 </head>
 <body>
 <main>
+  <a class="home" href="/">← 메인으로</a>
   <h1>find_spots 시험</h1>
   <p class="sub">지역과 실내 여부를 고르면 <code>/api/tools</code> 의 find_spots 를 그대로 불러서 결과를 표로 보여 줘요.</p>
   <form id="form">

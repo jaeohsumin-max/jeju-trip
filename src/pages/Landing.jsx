@@ -25,6 +25,8 @@ export default function Landing() {
           <p className="promise">제주 여행하는 사람들에게 오름에 대해 궁금한 것을 제대로 답해 주는 AI</p>
           <Link className="btn" to="/agent">지금 물어보기</Link>
           <Link className="sublink" to="/profile">내 여행 취향 알려 주기</Link>
+          {/* tools_test.html 은 React 화면이 아니라 따로 있는 html 이라 일반 링크로 열어요 */}
+          <a className="sublink" href="/tools_test.html">도구 시험 화면 (tools_test.html)</a>
         </div>
       </header>
 
