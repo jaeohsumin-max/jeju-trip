@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTitle, PROFILE_KEY } from '../lib.js';
+import PhotoSheet from '../Photos.jsx';
 import './Agent.css';
 
 // 지도 라이브러리(Leaflet 1.9.4)는 unpkg 에서 지도가 필요할 때 한 번만 불러와요.
@@ -331,6 +332,7 @@ export default function Agent() {
     { id: 2, who: 'me', text: '50대 부모님이 가기 좋은 곳' },
   ]);
   const [typing, setTyping] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false); // 제주 사진 화면
   const [text, setText] = useState('');
   const busyRef = useRef(false);
   const fakeN = useRef(0);
@@ -417,6 +419,7 @@ export default function Agent() {
 
         <div className="chips">
           {CHIPS.map((c) => <button type="button" key={c} onClick={() => send(c)}>{c}</button>)}
+          <button type="button" className="photo-btn" onClick={() => setPhotosOpen(true)}>📷 제주 사진 (돌하르방 · 특산물)</button>
         </div>
 
         <form onSubmit={onSubmit} autoComplete="off">
@@ -424,6 +427,8 @@ export default function Agent() {
           <button type="submit">보내기</button>
         </form>
         <p className="note">AI 추천 · 방문 전 확인하세요</p>
+
+        {photosOpen && <PhotoSheet onClose={() => setPhotosOpen(false)} />}
       </div>
     </div>
   );

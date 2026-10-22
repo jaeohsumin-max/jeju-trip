@@ -1,0 +1,61 @@
+/* 제주 사진 화면 (에이전트 화면의 휴대폰 틀 안에 덮어서 보여요) */
+.p-agent .phone{position:relative}
+.p-agent .photo-btn{grid-column:1 / -1;min-height:52px;background:var(--orange);color:#fff;font-size:1.05rem;font-weight:800}
+.p-agent .photo-btn:hover,.p-agent .photo-btn:active{background:var(--orange-d);color:#fff}
+
+.p-agent .ps{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;background:#fffaf4}
+.p-agent .ps-head{flex:none;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 18px;
+  background:var(--orange);color:#fff}
+.p-agent .ps-head h2{margin:0;font-size:1.3rem}
+.p-agent .ps-x{width:48px;height:48px;border:0;border-radius:14px;background:#ffffff40;color:#fff;font-size:1.3rem;
+  font-family:inherit;cursor:pointer}
+.p-agent .ps-x:active{background:#ffffff80}
+.p-agent .ps-x:focus-visible,.p-agent .ps-tab:focus-visible,.p-agent .ps-tile:focus-visible,.p-agent .ps-nav:focus-visible{
+  outline:3px solid #7b3fc4;outline-offset:2px}
+
+.p-agent .ps-tabs{flex:none;display:flex;gap:8px;overflow-x:auto;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line);
+  scrollbar-width:none}
+.p-agent .ps-tabs::-webkit-scrollbar{display:none}
+.p-agent .ps-tab{flex:none;min-height:44px;padding:0 16px;border:2px solid var(--orange);border-radius:999px;background:#fff;
+  color:var(--orange-d);font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.p-agent .ps-tab.on{background:var(--orange);color:#fff}
+
+.p-agent .ps-body{flex:1;overflow-y:auto;padding:10px 12px 14px}
+.p-agent .ps-hint{margin:0 0 10px;font-size:.8rem;color:#8a7c70;text-align:center}
+.p-agent .ps-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.p-agent .ps-tile{position:relative;aspect-ratio:1 / 1;padding:0;border:0;border-radius:16px;overflow:hidden;background:#f0e4d4;
+  box-shadow:0 3px 10px #00000026;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.p-agent .ps-tile:hover{transform:translateY(-2px);box-shadow:0 6px 14px #00000033}
+.p-agent .ps-tile img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .35s}
+.p-agent .ps-tile.on img{opacity:1}
+.p-agent .ps-tile.sk{cursor:default;background:linear-gradient(100deg,#f0e4d4 30%,#faf1e4 50%,#f0e4d4 70%);background-size:200% 100%;
+  animation:ps-shine 1.2s infinite linear}
+@keyframes ps-shine{from{background-position:200% 0}to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.p-agent .ps-tile.sk{animation:none}.p-agent .ps-tile,.p-agent .ps-tile img{transition:none}}
+.p-agent .ps-empty{padding:28px 12px;text-align:center;color:#6b5444}
+.p-agent .ps-empty p{margin:0 0 12px}
+.p-agent .ps-empty button{min-height:48px;padding:0 22px;border:2px solid var(--orange);border-radius:14px;background:#fff;color:var(--orange-d);
+  font-family:inherit;font-size:1rem;font-weight:800;cursor:pointer}
+.p-agent .ps-credit{margin:14px 0 0;text-align:center;font-size:.8rem;color:#8a7c70}
+.p-agent .ps-credit a{color:#1f6f9c}
+
+/* 크게 보기 */
+.p-agent .ps-viewer{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:64px 12px 18px;background:#18120cf0;animation:ps-fade .2s}
+@keyframes ps-fade{from{opacity:0}to{opacity:1}}
+.p-agent .ps-x.v{position:absolute;top:10px;right:10px}
+.p-agent .ps-count{position:absolute;top:22px;left:18px;color:#ffffffcc;font-size:.95rem;font-weight:700}
+.p-agent .ps-viewer figure{margin:0;width:100%;min-height:0;display:flex;flex-direction:column;align-items:center;gap:12px}
+.p-agent .ps-viewer img{max-width:100%;max-height:calc(100dvh - 250px);min-height:0;object-fit:contain;border-radius:14px;
+  box-shadow:0 10px 30px #0008;animation:ps-pop .25s}
+@keyframes ps-pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.p-agent .ps-viewer figcaption{display:flex;flex-direction:column;align-items:center;gap:6px;color:#fff;font-size:.9rem;text-align:center}
+.p-agent .ps-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.p-agent .ps-tags span{padding:2px 10px;border-radius:999px;background:#ffffff26;font-size:.8rem}
+.p-agent .ps-viewer figcaption a{color:#ffd9a8;text-decoration:underline;text-underline-offset:3px}
+.p-agent .ps-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:14px;
+  background:#ffffff33;color:#fff;font-size:2rem;line-height:1;font-family:inherit;cursor:pointer}
+.p-agent .ps-nav:active{background:#ffffff66}
+.p-agent .ps-nav.prev{left:4px}
+.p-agent .ps-nav.next{right:4px}
+@media(prefers-reduced-motion:reduce){.p-agent .ps-viewer,.p-agent .ps-viewer img{animation:none}}
