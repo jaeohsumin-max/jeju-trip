@@ -1,5 +1,8 @@
 {
   "functions": {
     "api/agent.js": { "maxDuration": 60 }
-  }
+  },
+  "rewrites": [
+    { "source": "/((?!api/|images/|assets/).*)", "destination": "/index.html" }
+  ]
 }

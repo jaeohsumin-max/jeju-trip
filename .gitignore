@@ -1,3 +1,8 @@
 # 비밀 값(API 키 등)이 들어 있는 파일은 git 에 올리지 않아요
 .env
 .env.local
+
+# 설치·빌드 결과물
+node_modules
+dist
+.vercel

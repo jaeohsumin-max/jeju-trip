@@ -40,7 +40,7 @@ function findSpots(input) {
   return { area, count: spots.length, truncated: matched.length > MAX_RESULTS, spots };
 }
 
-// GET /api/tools?area=동쪽&indoor=true  → find_spots 결과 (tools_test.html 이 브라우저에서 시험할 때 써요)
+// GET /api/tools?area=동쪽&indoor=true  → find_spots 결과 (/tools-test 화면이 브라우저에서 시험할 때 써요)
 // 장소 목록은 공개 정보라 키가 필요 없어요. 그 밖의 요청은 404.
 module.exports = (req, res) => {
   if (req.method !== 'GET') return res.status(404).end();

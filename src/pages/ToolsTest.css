@@ -1,0 +1,18 @@
+.p-tools{--orange:#ff8a1f;--orange-d:#e56f00;--line:#f0dcc4;--ink:#2f2a26}
+.p-tools{margin:0;padding:20px 16px;background:#fffaf4;color:var(--ink);word-break:keep-all;
+    font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+.p-tools main{max-width:720px;margin:0 auto}
+.p-tools h1{margin:0 0 4px;font-size:1.4rem}
+.p-tools p.sub{margin:0 0 16px;color:#8a7c70;font-size:.9rem}
+.p-tools form{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:16px}
+.p-tools label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:700}
+.p-tools select,.p-tools button{height:44px;border-radius:12px;border:2px solid var(--line);background:#fff;font:inherit;padding:0 12px}
+.p-tools button{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:800;cursor:pointer}
+.p-tools button:active{background:var(--orange-d)}
+.p-tools #status{margin:0 0 10px;font-size:.95rem}
+.p-tools #status.err{color:#b3261e}
+.p-tools .wrap{overflow-x:auto}
+.p-tools table{width:100%;border-collapse:collapse;background:#fff;border:2px solid var(--line);border-radius:12px;overflow:hidden}
+.p-tools th,.p-tools td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:.95rem;vertical-align:top}
+.p-tools th{background:#fff1e0;white-space:nowrap}
+.p-tools tr:last-child td{border-bottom:0}

@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>제주 오름이 | 오름이 궁금할 때 물어보세요</title>
 <meta name="description" content="제주 여행하는 사람들에게 오름에 대해 궁금한 것을 알려 주는 AI, 제주 오름이입니다.">
 <!-- 공유 미리보기 (카카오톡·메신저 등에서 링크를 보냈을 때 보이는 정보) -->
@@ -14,123 +14,15 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="선글라스 쓴 햇살 로고와 제주 오름이 이름">
 <meta property="og:url" content="https://jeju-trip-blond.vercel.app/">
-<link rel="icon" href="images/icon-180.png" type="image/png" sizes="180x180">
-<link rel="apple-touch-icon" href="images/icon-180.png">
-<link rel="manifest" href="manifest.json">
+<link rel="icon" href="/images/icon-180.png" type="image/png" sizes="180x180">
+<link rel="apple-touch-icon" href="/images/icon-180.png">
+<link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
-<style>
-  /* brand.md 의 색 토큰과 글꼴 */
-  :root{--main:#FF8A1F;--point:#FFF1E0;--bg:#FFFFFF;
-    --ink:#3A2B22;       /* 글자색: 읽기 쉽게 진한 색 (brand.md 에는 없음) */
-    --ink-soft:#6B5444}
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.65;word-break:keep-all;font-size:1.1rem;
-    font-family:"Jua","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
-  .wrap{width:min(960px,100% - 32px);margin:0 auto}
-  h1,h2,h3{margin:0;line-height:1.3}
-  p{margin:0}
-
-  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 34px;border-radius:999px;
-    background:var(--main);color:var(--ink);font-family:inherit;font-size:1.25rem;text-decoration:none;
-    border:3px solid var(--ink);transition:transform .15s,box-shadow .15s;box-shadow:0 4px 0 var(--ink)}
-  .btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--ink)}
-  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
-
-  /* ① 히어로 */
-  .hero{background:var(--point);text-align:center;padding:44px 0 56px;border-bottom:6px solid var(--main)}
-  .logo{width:132px;height:132px;display:block;margin:0 auto 10px}
-  .hero h1{font-size:clamp(2.2rem,9vw,3.4rem)}
-  .sublink{display:flex;align-items:center;justify-content:center;width:max-content;min-height:48px;margin:14px auto 0;padding:0 8px;
-    color:var(--ink);font-size:1.1rem;text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px;text-decoration-color:var(--main)}
-  .sublink:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:8px}
-  .hero h1 span{background:linear-gradient(transparent 62%,var(--main) 62% 92%,transparent 92%);padding:0 4px}
-  .promise{max-width:520px;margin:16px auto 26px;font-size:clamp(1.15rem,4.4vw,1.4rem)}
-
-  /* ② 할 수 있는 일 */
-  section{padding:56px 0}
-  h2{text-align:center;font-size:clamp(1.6rem,6vw,2.1rem)}
-  .lead{text-align:center;color:var(--ink-soft);margin:6px 0 28px}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
-  .card{background:var(--bg);border:3px solid var(--point);border-radius:24px;padding:22px 20px;box-shadow:0 6px 0 var(--point)}
-  .card .ico{font-size:2.6rem;line-height:1}
-  .card h3{font-size:1.3rem;margin:10px 0 6px}
-  .card p{color:var(--ink-soft)}
-  .ask{display:inline-block;margin-top:12px;background:var(--point);border-radius:14px;padding:6px 12px;font-size:1rem}
-
-  /* ③ 사용법 */
-  .how{background:var(--point)}
-  .steps{list-style:none;margin:0;padding:0;display:grid;gap:14px;counter-reset:s}
-  .steps li{counter-increment:s;display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:start;background:var(--bg);
-    border-radius:20px;padding:16px 18px}
-  .steps li::before{content:counter(s);width:52px;height:52px;border-radius:50%;background:var(--main);color:var(--ink);
-    display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:3px solid var(--ink)}
-  .steps b{display:block;font-size:1.25rem}
-  .steps span{color:var(--ink-soft)}
-  @media(min-width:760px){.steps{grid-template-columns:repeat(3,1fr)}.steps li{grid-template-columns:1fr;text-align:center;justify-items:center}}
-
-  /* ④ 맨 아래 */
-  .end{text-align:center}
-  .end .small{margin-top:16px;font-size:1rem;color:var(--ink-soft)}
-  footer{text-align:center;padding:20px 16px 32px;font-size:1rem;color:var(--ink-soft)}
-</style>
 </head>
 <body>
-
-<header class="hero">
-  <div class="wrap">
-    <img class="logo" src="images/logo.svg" alt="제주 오름이 로고: 오름 위로 떠오른 선글라스 쓴 햇살">
-    <h1><span>제주 오름이</span></h1>
-    <p class="promise">제주 여행하는 사람들에게 오름에 대해 궁금한 것을 제대로 답해 주는 AI</p>
-    <a class="btn" href="agent.html">지금 물어보기</a>
-    <a class="sublink" href="profile.html">내 여행 취향 알려 주기</a>
-  </div>
-</header>
-
-<section>
-  <div class="wrap">
-    <h2>이런 걸 물어볼 수 있어요</h2>
-    <p class="lead">오름에 가기 전에, 또는 오름 앞에서 편하게 물어보세요.</p>
-    <div class="cards">
-      <div class="card"><div class="ico">🌤️</div>
-        <h3>지금 오름 날씨</h3>
-        <p>가려는 오름의 날씨를 찾아보고, 지금 가도 괜찮은지 알려 드려요.</p>
-        <span class="ask">“현재 오름 날씨 알려 주세요”</span></div>
-      <div class="card"><div class="ico">☔</div>
-        <h3>비 오는 날 가도 되는 오름</h3>
-        <p>비나 바람이 있는 날에도 비교적 안전하게 다녀올 수 있는 오름을 골라 드려요.</p>
-        <span class="ask">“비 와도 괜찮은 오름은요?”</span></div>
-      <div class="card"><div class="ico">🕒</div>
-        <h3>가기 좋은 시간</h3>
-        <p>날씨와 걷는 시간을 보고, 언제 가면 좋을지 시간대를 추천해 드려요.</p>
-        <span class="ask">“몇 시에 가면 좋을까요?”</span></div>
-    </div>
-  </div>
-</section>
-
-<section class="how">
-  <div class="wrap">
-    <h2>이렇게 써요</h2>
-    <p class="lead">세 단계면 돼요.</p>
-    <ol class="steps">
-      <li><div><b>묻기</b><span>궁금한 걸 편하게 말해 주세요.</span></div></li>
-      <li><div><b>찾아보고 판단</b><span>날씨와 오름 정보를 찾아보고, 가도 괜찮은지 따져 봐요.</span></div></li>
-      <li><div><b>추천 받기</b><span>이유 한 줄과 함께 한 가지씩 추천해 드려요.</span></div></li>
-    </ol>
-  </div>
-</section>
-
-<section class="end">
-  <div class="wrap">
-    <h2>오름이 궁금하세요?</h2>
-    <p class="lead">궁금한 걸 지금 바로 물어보세요.</p>
-    <a class="btn" href="agent.html">지금 물어보기</a>
-    <p class="small">아직 연습 중인 에이전트예요</p>
-  </div>
-</section>
-
-<footer>© 제주 오름이</footer>
+<div id="root"></div>
+<script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

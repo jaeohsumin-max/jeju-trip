@@ -1,0 +1,307 @@
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useTitle, PROFILE_KEY } from '../lib.js';
+import './Agent.css';
+
+const ENC = 'http://encykorea.aks.ac.kr/Contents/Item/E0068824';
+const ABOUT = [
+  '오름은 작은 산이나 산봉우리를 가리키는 제주어예요.',
+  '제주도에는 368개에 달하는 오름이 알려져 있어요.',
+  '오름은 대부분 현무암질 스코리아로 만들어진 분석구예요.',
+];
+const CHIPS = ['현재 오름 날씨', '비 와도 괜찮은 오름', '시간 추천'];
+
+// 2일차 가짜 답변 3개: 연습 모드이거나 호출이 실패했을 때만 차례로 돌려 써요 (진짜 AI 아님)
+const FAKE_REPLIES = [
+  '안녕하세요! 저는 오름 길잡이예요 🌞 오늘 어느 오름에 가 보고 싶으세요? 걷는 시간이나 날씨를 알려 주시면 맞춰서 알려 드릴게요.',
+  '부모님과 함께라면 오르는 길이 완만한 오름이 좋아요. 예를 들어 새별오름은 정상까지 가볍게 오를 수 있는 오름으로 알려져 있어요.',
+  '아직 공부 중이에요! 5일차에 진짜로 알아볼게요.',
+];
+
+const TOOL_LABEL = { find_spots: '장소 찾기', get_weather: '날씨 보기' };
+const NUMS = ['①', '②', '③', '④', '⑤', '⑥'];
+
+// 보낼 취향: 이 기기에 저장된 값 → 없으면 my_profile.json → 그래도 없으면 빈 취향
+function cleanProfile(d) {
+  const o = d && typeof d === 'object' ? d : {};
+  return {
+    style: Array.isArray(o.style) ? o.style.filter((x) => typeof x === 'string') : [],
+    pace: typeof o.pace === 'string' ? o.pace : '',
+    with: typeof o.with === 'string' ? o.with : '',
+  };
+}
+const hasAny = (p) => p.style.length > 0 || !!p.pace || !!p.with;
+
+async function getProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (raw) {
+      const p = cleanProfile(JSON.parse(raw));
+      if (hasAny(p)) return p;
+    }
+  } catch (e) { /* 저장소를 못 읽으면 다음 방법으로 */ }
+  try {
+    const r = await fetch('/my_profile.json', { cache: 'no-store' });
+    if (r.ok) {
+      const p = cleanProfile(await r.json());
+      if (hasAny(p)) return p;
+    }
+  } catch (e) { /* 파일이 없으면 빈 취향 */ }
+  return { style: [], pace: '', with: '' };
+}
+
+// 주소 하나에 묻기. 진짜 답이면 서버가 준 값, 아니면 null
+async function callApi(url, question, profile, ms) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question.slice(0, 300), profile }),
+      signal: ctl.signal,
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && d.mode === 'live' && typeof d.text === 'string' && d.text.trim() ? d : null;
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 먼저 /api/agent(도구를 쓰는 에이전트), 안 되면 /api/recommend, 그래도 안 되면 연습 모드
+async function ask(question) {
+  const profile = await getProfile();
+  const a = await callApi('/api/agent', question, profile, 60000);
+  if (a) {
+    return {
+      text: a.text.trim(),
+      itinerary: Array.isArray(a.itinerary) ? a.itinerary.slice(0, 3) : [],
+      steps: Array.isArray(a.steps) ? a.steps : [],
+    };
+  }
+  const r = await callApi('/api/recommend', question, profile, 30000);
+  if (r) return { text: r.text.trim(), itinerary: [], steps: null }; // 도구 기록이 없으면 '생각 과정'도 안 보여요
+  return { practice: true };
+}
+
+// 생각 과정 보기: 서버가 기록한 실제 도구 호출만 한 줄씩 보여 줘요 (지어낸 설명 없음)
+function Think({ steps, picked }) {
+  const lines = steps.slice(0, 6).map((s, i) => {
+    const label = TOOL_LABEL[s && s.tool] || '도구 사용';
+    const area = s && s.input && typeof s.input.region === 'string' ? s.input.region + ' ' : '';
+    return NUMS[i] + ' ' + area + label + ' → ' + String((s && s.summary) || '').slice(0, 120);
+  });
+  if (!lines.length) lines.push('도구를 쓰지 않고 바로 답했어요');
+  else if (picked) lines.push('→ 결과를 보고 ' + picked + '곳을 골랐어요');
+  return (
+    <details className="think">
+      <summary>생각 과정 보기</summary>
+      <ol>{lines.map((l, i) => <li key={i}>{l}</li>)}</ol>
+    </details>
+  );
+}
+
+// 지도 핀: 번호 = 카드 번호. 핀을 누르면 카드가, 카드를 누르면 핀이 강조돼요 (답변마다 지도 하나)
+function SpotMap({ items, selected, onPick, focusRef }) {
+  const divRef = useRef(null);
+  const markersRef = useRef([]);
+  const mapRef = useRef(null);
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
+
+  useEffect(() => {
+    const pts = items.map((s, i) => ({ s, i })).filter((p) => Number.isFinite(p.s.lat) && Number.isFinite(p.s.lng));
+    if (!pts.length) return undefined;
+    const map = L.map(divRef.current, { scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false, zoomControl: true });
+    mapRef.current = map;
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+    markersRef.current = [];
+    pts.forEach(({ s, i }) => {
+      const icon = L.divIcon({ className: '', html: '<div class="pin">' + (i + 1) + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
+      const m = L.marker([s.lat, s.lng], { icon, title: String(s.name || '') }).addTo(map);
+      m.on('click', () => pickRef.current(i, true));
+      markersRef.current[i] = m;
+    });
+    map.fitBounds(L.latLngBounds(pts.map((p) => [p.s.lat, p.s.lng])), { padding: [30, 30], maxZoom: 12 });
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      markersRef.current = [];
+    };
+  }, [items]);
+
+  // 선택한 핀 강조 + (카드를 눌렀을 때) 그 장소로 이동
+  useEffect(() => {
+    markersRef.current.forEach((m, k) => {
+      const e = m && m.getElement();
+      if (e && e.firstChild) e.firstChild.classList.toggle('on', k === selected);
+    });
+    const s = items[selected];
+    if (focusRef.current && mapRef.current && s && Number.isFinite(s.lat) && Number.isFinite(s.lng)) {
+      mapRef.current.setView([s.lat, s.lng], Math.max(mapRef.current.getZoom(), 12));
+    }
+    focusRef.current = false;
+  }, [selected, items, focusRef]);
+
+  return <div className="map" ref={divRef} role="img" aria-label="추천 장소 지도" />;
+}
+
+// 일정 카드 + 지도: 서버가 준 값은 전부 글자로만 넣어요 (React 가 알아서 막아 줘요)
+function Itinerary({ items }) {
+  const [selected, setSelected] = useState(-1);
+  const focusRef = useRef(false); // true 면 카드를 눌러서 바뀐 것 → 지도를 그 장소로 옮겨요
+  const cardRefs = useRef([]);
+
+  function pick(i, fromPin) {
+    focusRef.current = !fromPin;
+    setSelected(i);
+    if (fromPin && cardRefs.current[i]) cardRefs.current[i].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  return (
+    <>
+      <div className="cards">
+        {items.map((s, i) => {
+          const meta = [s.region, s.type, s.duration_min ? '약 ' + s.duration_min + '분' : '', s.difficulty].filter(Boolean).join(' · ');
+          return (
+            <div
+              className={'card' + (selected === i ? ' on' : '')}
+              key={String(s.id || i)}
+              data-id={String(s.id || '')}
+              ref={(el) => { cardRefs.current[i] = el; }}
+              onClick={() => pick(i, false)}
+            >
+              <div className="no">{i + 1}</div>
+              <div className="body">
+                <p className="name">{String(s.name || '')}</p>
+                <p className="meta">{meta}</p>
+                {s.reason && <p className="why">{String(s.reason)}</p>}
+                <span className={'rain ' + (s.rain_ok ? 'ok' : 'care')}>{s.rain_ok ? '비 와도 가능' : '비 오면 조심'}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <SpotMap items={items} selected={selected} onPick={pick} focusRef={focusRef} />
+    </>
+  );
+}
+
+// 에이전트 말풍선 (연습 모드면 말풍선 위에 작은 '연습 모드' 표시)
+function Bot({ m }) {
+  const items = m.itinerary || [];
+  const wide = Array.isArray(m.steps) || items.length > 0;
+  return (
+    <div className={'botwrap' + (wide ? ' wide' : '')}>
+      {m.practice && <span className="mode-tag">연습 모드</span>}
+      <div className="msg bot">{m.text}</div>
+      {Array.isArray(m.steps) && <Think steps={m.steps} picked={items.length} />}
+      {items.length > 0 && <Itinerary items={items} />}
+    </div>
+  );
+}
+
+export default function Agent() {
+  useTitle('오름 길잡이');
+  const [messages, setMessages] = useState([
+    { id: 1, who: 'bot', text: '안녕하세요! 어떤 오름이 궁금해요?' },
+    { id: 2, who: 'me', text: '50대 부모님이 가기 좋은 곳' },
+  ]);
+  const [typing, setTyping] = useState(false);
+  const [text, setText] = useState('');
+  const busyRef = useRef(false);
+  const fakeN = useRef(0);
+  const nextId = useRef(3);
+  const chatRef = useRef(null);
+
+  useEffect(() => {
+    const el = chatRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, typing]);
+
+  async function send(t) {
+    t = t.trim();
+    if (!t || busyRef.current) return;
+    busyRef.current = true;
+    setMessages((ms) => [...ms, { id: nextId.current++, who: 'me', text: t }]);
+    setTyping(true); // 답을 기다리는 동안 왼쪽에 "..." 표시 (너무 빨리 사라지지 않게 최소 1초)
+    try {
+      const [res] = await Promise.all([ask(t), new Promise((r) => setTimeout(r, 1000))]);
+      const bot = res.practice
+        ? { who: 'bot', text: FAKE_REPLIES[fakeN.current++ % FAKE_REPLIES.length], practice: true }
+        : { who: 'bot', text: res.text, itinerary: res.itinerary, steps: res.steps };
+      setMessages((ms) => [...ms, { id: nextId.current++, ...bot }]);
+    } finally {
+      setTyping(false);
+      busyRef.current = false;
+    }
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    if (busyRef.current || !text.trim()) return;
+    const v = text;
+    setText('');
+    send(v);
+  }
+
+  return (
+    <div className="p-agent">
+      <div className="phone">
+        <header>
+          <Link className="back" to="/" aria-label="처음 화면으로 돌아가기">
+            <span className="arrow" aria-hidden="true">‹</span>
+            <img src="/images/logo.svg" alt="" width="40" height="40" />
+          </Link>
+          <h1>오름 길잡이 <span className="sun" aria-hidden="true">🌞</span></h1>
+          <Link className="pref" to="/profile" aria-label="내 여행 취향 정하기">내 취향</Link>
+        </header>
+
+        <details className="about">
+          <summary>이 에이전트는요</summary>
+          <div className="about-body">
+            <ul>
+              {ABOUT.map((t) => (
+                <li key={t}>{t}
+                  <small>출처: <a href={ENC} target="_blank" rel="noopener noreferrer">한국민족문화대백과사전 ‘오름’</a></small>
+                </li>
+              ))}
+            </ul>
+            <p className="jeju-line">🌿 <b>혼저 옵서예</b> — 어서 오세요
+              <small>출처: <a href="https://www.jeju.go.kr/culture/dialect/lifeDialect.htm?act=view&seq=96" target="_blank" rel="noopener noreferrer">제주특별자치도 생활제주어</a> (이 페이지에는 ‘혼저 옵서게 — 어서 오십시오’로 실려 있어요)</small>
+            </p>
+          </div>
+        </details>
+
+        <main id="chat" ref={chatRef}>
+          {messages.map((m) => (m.who === 'me'
+            ? <div className="msg me" key={m.id}>{m.text}</div>
+            : m.practice || m.steps !== undefined || m.itinerary
+              ? <Bot m={m} key={m.id} />
+              : <div className="msg bot" key={m.id}>{m.text}</div>))}
+          {typing && (
+            <div className="msg bot typing" aria-label="답변 작성 중"><span /><span /><span /></div>
+          )}
+        </main>
+
+        <div className="chips">
+          {CHIPS.map((c) => <button type="button" key={c} onClick={() => send(c)}>{c}</button>)}
+        </div>
+
+        <form onSubmit={onSubmit} autoComplete="off">
+          <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="메세지 입력" aria-label="메세지 입력" />
+          <button type="submit">보내기</button>
+        </form>
+        <p className="note">AI 추천 · 방문 전 확인하세요</p>
+      </div>
+    </div>
+  );
+}
