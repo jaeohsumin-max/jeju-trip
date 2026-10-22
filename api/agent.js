@@ -328,7 +328,13 @@ module.exports = async function handler(req, res) {
   const failedKeys = []; // 막힌 열쇠 '이름:상태코드' (값은 아님)
   // 열쇠 연결 상태 확인용: 설정된 이름, 막힌 이름과 상태, 비슷한 이름의 환경변수(이름만). 값은 절대 없어요.
   const keyInfo = () => ({
-    configured: keys.map((k) => k.name),
+    // 열쇠의 모양만 알려 줘요 (값은 아님): 길이, 'AIza' 로 시작하는지, 따옴표·공백·줄바꿈이 섞였는지
+    configured: keys.map((k) => ({
+      name: k.name,
+      len: k.value.length,
+      aizaPrefix: k.value.startsWith('AIza'),
+      oddChars: /["'\s=]/.test(String(process.env[k.name] || '').trim()),
+    })),
     failed: failedKeys,
     similarNames: Object.keys(process.env).filter((n) => /console|gemini|google/i.test(n) && !KEY_VARS.includes(n)).slice(0, 6),
   });
@@ -373,7 +379,7 @@ module.exports = async function handler(req, res) {
           console.error('agent failed: upstream ' + r.status);
           // 화면 확인용으로 열쇠 이름(값은 아님)·상태 코드·오류 문구 앞부분(열쇠는 가림)을 오류에 달아 둬요
           lastErr = Object.assign(new Error('upstream'), { name: 'UpstreamError', status: r.status, detail: scrubAll(detail).slice(0, 160), keyVar: k.name });
-          failedKeys.push(k.name + ':' + r.status);
+          failedKeys.push(k.name + ':' + r.status + ' ' + scrubAll(detail).slice(0, 90));
           if (ki < keys.length - 1 && [400, 401, 403, 429].includes(r.status)) { keyStart = ki + 1; continue; }
           throw lastErr;
         }
