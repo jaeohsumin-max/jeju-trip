@@ -59,9 +59,11 @@
 @keyframes tree-fly{0%{transform:translate(0,0) scale(1) rotate(0)}35%{transform:translate(calc(var(--dx) * .1),-26px) scale(1.15) rotate(-14deg)}100%{transform:translate(var(--dx),var(--dy)) scale(.5) rotate(300deg)}}
 .p-tree .spark{animation:t-spark .8s ease-out forwards;pointer-events:none}
 @keyframes t-spark{from{opacity:1;transform:translate(0,0) scale(.6)}to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.4)}}
+.p-tree .bpop{transform-box:fill-box;transform-origin:50% 100%;animation:t-bpop .55s cubic-bezier(.2,1.6,.4,1)}
+@keyframes t-bpop{from{transform:scale(0) rotate(-12deg)}to{transform:scale(1) rotate(0)}}
 .p-tree .bump{transform-box:fill-box;transform-origin:50% 100%;animation:t-bump .45s cubic-bezier(.2,1.6,.4,1)}
 @keyframes t-bump{0%{transform:scale(1)}40%{transform:scale(1.12,.9)}100%{transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){
-  .p-tree .sway,.p-tree .pop,.p-tree .bump,.p-tree .cand.sk,.p-tree .ttoast,.p-tree .spark{animation:none}
+  .p-tree .sway,.p-tree .pop,.p-tree .bump,.p-tree .bpop,.p-tree .cand.sk,.p-tree .ttoast,.p-tree .spark{animation:none}
   .p-tree .fly{animation-duration:.01s}
 }
