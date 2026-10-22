@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>find_spots 시험</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <style>
   :root{--orange:#ff8a1f;--orange-d:#e56f00;--line:#f0dcc4;--ink:#2f2a26}
   *{box-sizing:border-box}
@@ -28,6 +29,13 @@
     border:2px solid var(--orange);background:#fff;color:var(--orange-d);font-weight:800;text-decoration:none}
   .home:active{background:#fff1e0}
   h1.second{margin-top:32px}
+  details.json{margin-top:12px;font-size:.9rem}
+  details.json summary{cursor:pointer;font-weight:800;color:var(--orange-d);min-height:36px;display:flex;align-items:center}
+  details.json pre{margin:6px 0 0;padding:10px;max-height:260px;overflow:auto;background:#fff;border:2px solid var(--line);border-radius:12px;font-size:.8rem}
+  .map{position:relative;z-index:0;height:260px;margin-top:12px;border:2px solid var(--line);border-radius:12px;overflow:hidden}
+  .map[hidden]{display:none}
+  .pin{width:30px;height:30px;border-radius:50%;background:var(--orange);color:#fff;font-weight:800;border:2px solid #fff;
+    box-shadow:0 2px 6px #0004;display:flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
@@ -55,6 +63,8 @@
       <tbody id="rows"></tbody>
     </table>
   </div>
+  <details class="json" id="rawbox" open hidden><summary>받은 JSON 데이터</summary><pre id="raw"></pre></details>
+  <div class="map" id="map" hidden role="img" aria-label="find_spots 결과 위치 지도"></div>
 
   <h1 class="second">get_weather 시험</h1>
   <p class="sub">지역과 오늘/내일을 고르면 <code>/api/tools</code> 의 get_weather 를 그대로 불러서 Open-Meteo 예보를 보여 줘요.</p>
@@ -76,18 +86,54 @@
       <tbody id="wrows"></tbody>
     </table>
   </div>
+  <details class="json" id="wrawbox" open hidden><summary>받은 JSON 데이터</summary><pre id="wraw"></pre></details>
+  <div class="map" id="wmap" hidden role="img" aria-label="get_weather 지역 위치 지도"></div>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
+  // 받은 JSON 을 그대로 보여 주고(rawId), 좌표가 있는 항목을 지도(mapId)에 번호 핀으로 찍어요
+  const maps={};
+  function showJson(boxId,preId,data){
+    document.getElementById(preId).textContent=JSON.stringify(data,null,2);
+    document.getElementById(boxId).hidden=false;
+  }
+  function drawMap(mapId,points){ // points: [{lat,lng,label,title,text}]
+    const el=document.getElementById(mapId);
+    const pts=points.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng));
+    if(!window.L||!pts.length){el.hidden=true;return}
+    el.hidden=false;
+    let m=maps[mapId];
+    if(!m){
+      m={map:L.map(el,{scrollWheelZoom:false}),layer:null};maps[mapId]=m;
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(m.map);
+    }
+    if(m.layer)m.layer.remove();
+    m.layer=L.layerGroup().addTo(m.map);
+    pts.forEach(p=>{
+      const icon=L.divIcon({className:'',html:'<div class="pin">'+p.label+'</div>',iconSize:[30,30],iconAnchor:[15,15]});
+      const pop=document.createElement('div');
+      const b=document.createElement('b');b.textContent=p.title;pop.appendChild(b);
+      if(p.text){pop.appendChild(document.createElement('br'));pop.appendChild(document.createTextNode(p.text))}
+      L.marker([p.lat,p.lng],{icon,title:p.title}).bindPopup(pop).addTo(m.layer);
+    });
+    m.map.invalidateSize();
+    if(pts.length===1)m.map.setView([pts[0].lat,pts[0].lng],11);
+    else m.map.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lng])),{padding:[30,30],maxZoom:12});
+  }
   const area=document.getElementById('area'),indoor=document.getElementById('indoor');
   const status=document.getElementById('status'),table=document.getElementById('table'),rows=document.getElementById('rows');
   async function run(){
     status.className='';status.textContent='찾는 중…';table.hidden=true;rows.textContent='';
+    document.getElementById('rawbox').hidden=true;document.getElementById('map').hidden=true;
     const qs=new URLSearchParams({area:area.value});
     if(indoor.value)qs.set('indoor',indoor.value);
     try{
       const r=await fetch('/api/tools?'+qs);
       const d=await r.json();
+      showJson('rawbox','raw',d);
       if(!r.ok||d.error){status.className='err';status.textContent='오류: '+(d.error||r.status);return}
+      drawMap('map',d.spots.map((s,i)=>({lat:s.lat,lng:s.lng,label:i+1,title:s.name,text:(s.indoor?'실내':'야외')+' · '+s.description})));
       d.spots.forEach(s=>{
         const tr=document.createElement('tr');
         [s.name,s.area,s.indoor?'실내':'야외',s.description].forEach(v=>{
@@ -107,11 +153,14 @@
   const wstatus=document.getElementById('wstatus'),wtable=document.getElementById('wtable'),wrows=document.getElementById('wrows');
   async function runWeather(){
     wstatus.className='';wstatus.textContent='불러오는 중…';wtable.hidden=true;wrows.textContent='';
+    document.getElementById('wrawbox').hidden=true;document.getElementById('wmap').hidden=true;
     const qs=new URLSearchParams({tool:'weather',area:warea.value,day:wday.value});
     try{
       const r=await fetch('/api/tools?'+qs);
       const d=await r.json();
+      showJson('wrawbox','wraw',d);
       if(!r.ok||!d.ok){wstatus.className='err';wstatus.textContent=(d&&d.note)||('오류: '+r.status);return}
+      drawMap('wmap',[{lat:d.lat,lng:d.lng,label:'☁',title:d.area+' · '+d.day+' ('+d.date+')',text:'강수확률 '+d.precipitation_probability+'% · 최고 '+d.temperature_max+'°C (지역 대표 위치)'}]);
       const tr=document.createElement('tr');
       [d.date,d.precipitation_probability+'%',d.temperature_max+'°C',d.source].forEach(v=>{
         const td=document.createElement('td');td.textContent=String(v);tr.appendChild(td);

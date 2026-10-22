@@ -97,12 +97,20 @@ module.exports = async (req, res) => {
   const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
   if (q.tool === 'weather') {
     const w = await getWeather({ area: q.area, day: q.day });
+    const pt = w.ok && data.areas ? data.areas[q.area] : null;
     res.status(200);
     res.setHeader('Cache-Control', 'no-store');
-    return res.json(w);
+    return res.json(pt ? { ...w, lat: pt.lat, lng: pt.lng } : w); // 화면의 지도용으로 대표 좌표를 덧붙여요
   }
   const indoor = q.indoor === 'true' ? true : q.indoor === 'false' ? false : undefined;
   const out = findSpots({ area: q.area, indoor });
+  if (!out.error) {
+    // 화면의 지도용으로 좌표를 덧붙여요 (모델에게 주는 findSpots 결과에는 좌표가 없어요)
+    out.spots = out.spots.map((s) => {
+      const f = data.spots.find((x) => x.name === s.name && x.region === s.area);
+      return f ? { ...s, lat: f.lat, lng: f.lng } : s;
+    });
+  }
   res.status(out.error ? 400 : 200);
   res.setHeader('Cache-Control', 'no-store');
   res.json(out);
