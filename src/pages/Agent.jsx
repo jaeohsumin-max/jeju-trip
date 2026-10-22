@@ -38,11 +38,15 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-const ENC = 'http://encykorea.aks.ac.kr/Contents/Item/E0068824';
+// '이 에이전트는요'에 보이는 제주 이야기: 출처를 직접 열어 확인한 사실만 써요
+const ENC_JEJU = { label: '한국민족문화대백과사전 ‘제주도’', href: 'https://encykorea.aks.ac.kr/Article/E0051413' };
 const ABOUT = [
-  '오름은 작은 산이나 산봉우리를 가리키는 제주어예요.',
-  '제주도에는 368개에 달하는 오름이 알려져 있어요.',
-  '오름은 대부분 현무암질 스코리아로 만들어진 분석구예요.',
+  { text: '제주도는 우리나라에서 가장 큰 섬이에요.', ...ENC_JEJU },
+  { text: '한라산(1,947m)은 대한민국에서 가장 높은 산이에요.', ...ENC_JEJU },
+  { text: '‘제주 화산섬과 용암동굴’은 2007년 유네스코 세계자연유산으로 등재됐어요.',
+    label: '유네스코 세계유산센터 (2007년 등재 소식)', href: 'https://whc.unesco.org/en/news/358' },
+  { text: '제주 해녀 문화는 2016년 유네스코 인류무형문화유산에 올랐어요.',
+    label: '유네스코 무형유산 ‘The Culture of Jeju Haenyeo’', href: 'https://ich.unesco.org/en/RL/culture-of-jeju-haenyeo-women-divers-01068' },
 ];
 const CHIPS = ['오늘 제주 날씨', '비 와도 괜찮은 곳', '반나절 코스 추천'];
 
@@ -117,7 +121,8 @@ async function ask(question) {
     tip: typeof a.tip === 'string' ? a.tip.trim() : '',
     places: Array.isArray(a.places) ? a.places.slice(0, 3) : [],
     steps: Array.isArray(a.steps) ? a.steps : [],
-    demo: a.mode === 'practice', // 서버가 열쇠 없이 규칙으로 만든 결과면 '연습 모드' 표시
+    demo: a.mode === 'practice', // 서버가 규칙으로 만든 결과면 표시를 달아요
+    notice: typeof a.notice === 'string' ? a.notice : '', // 예: AI 가 바빠서 간단 모드로 답했어요
   };
 }
 
@@ -309,7 +314,7 @@ function Bot({ m }) {
   const wide = hasPlaces || Array.isArray(m.steps);
   return (
     <div className={'botwrap' + (wide ? ' wide' : '')}>
-      {m.practice && <span className="mode-tag">연습 모드</span>}
+      {m.practice && <span className="mode-tag">{m.notice || '연습 모드'}</span>}
       {hasPlaces ? (
         <>
           {m.judge && <p className="answer-judge">{m.judge}</p>}
@@ -361,7 +366,7 @@ export default function Agent() {
       const [res] = await Promise.all([ask(t), new Promise((r) => setTimeout(r, 1000))]);
       const bot = res.practice
         ? { who: 'bot', text: FAKE_REPLIES[fakeN.current++ % FAKE_REPLIES.length], practice: true }
-        : { who: 'bot', text: res.text, judge: res.judge, tip: res.tip, places: res.places, steps: res.steps, practice: res.demo };
+        : { who: 'bot', text: res.text, judge: res.judge, tip: res.tip, places: res.places, steps: res.steps, practice: res.demo, notice: res.notice };
       setMessages((ms) => [...ms, { id: nextId.current++, ...bot }]);
     } finally {
       setTyping(false);
@@ -393,9 +398,9 @@ export default function Agent() {
           <summary>이 에이전트는요</summary>
           <div className="about-body">
             <ul>
-              {ABOUT.map((t) => (
-                <li key={t}>{t}
-                  <small>출처: <a href={ENC} target="_blank" rel="noopener noreferrer">한국민족문화대백과사전 ‘오름’</a></small>
+              {ABOUT.map((a) => (
+                <li key={a.text}>{a.text}
+                  <small>출처: <a href={a.href} target="_blank" rel="noopener noreferrer">{a.label}</a></small>
                 </li>
               ))}
             </ul>

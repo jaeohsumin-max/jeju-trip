@@ -39,7 +39,7 @@ const SYSTEM = [
   '제주 반나절 코스로, 도구로 확인한 장소 중에서 3곳을 골라 주세요.',
   '',
   '도구 사용:',
-  '- find_spots 로 지역의 장소를 찾고, get_weather 로 오늘·내일 강수확률을 확인하세요.',
+  '- find_spots 로 지역의 장소를 찾고, get_weather 로 오늘·내일 강수확률을 확인하세요. 두 도구는 한 번에 함께 호출하세요 (요청 횟수를 아껴요).',
   '- 장소를 2곳 이상 골랐다면 plan_route 로 방문 순서를 정하세요. 거리는 직선거리일 뿐이니 이동 시간은 지어내지 마세요.',
   '- 질문에 지역이 없으면 취향을 보고 지역 하나를 정해 찾으세요. 날짜가 없으면 오늘로 보세요.',
   '',
@@ -361,6 +361,18 @@ module.exports = async function handler(req, res) {
     return c && c.content && Array.isArray(c.content.parts) ? c.content.parts : [];
   };
 
+  // AI 가 한도 초과(429)·오류·시간 초과 등으로 답하지 못하면, 같은 도구(장소·날씨)로 규칙 기반 답을 대신 만들어 줘요.
+  // 그래서 사용자는 빈손이 되지 않고, 이유(debug)는 개발자가 응답에서 볼 수 있어요. 규칙 답도 못 만들면 그때만 오류예요.
+  async function fallback(debug) {
+    try {
+      const r = await practice(question, profile);
+      return send(res, 200, { ...r, notice: 'AI가 잠시 바빠서 간단 모드로 답했어요', debug });
+    } catch (e2) {
+      console.error('agent fallback failed: ' + String((e2 && e2.name) || 'Error').slice(0, 40));
+      return send(res, 502, { mode: 'error', text: RETRY_TEXT, debug });
+    }
+  }
+
   try {
     // 3) 도구 루프: 도구를 부르면 서버가 실행하고 결과를 돌려준 뒤 다시 판단하게 해요
     let dataOut = null;
@@ -397,7 +409,7 @@ module.exports = async function handler(req, res) {
       const finish = String((cand && cand.finishReason) || '?').slice(0, 40);
       const block = String((dataOut && dataOut.promptFeedback && dataOut.promptFeedback.blockReason) || '-').slice(0, 40);
       console.error('agent empty: finishReason=' + finish + ' blockReason=' + block);
-      return send(res, 502, { mode: 'error', text: RETRY_TEXT, debug: { empty: true, finishReason: finish, blockReason: block, model } });
+      return fallback({ empty: true, finishReason: finish, blockReason: block, model });
     }
     const parsed = parseFinal(text);
     if (!parsed) {
@@ -416,6 +428,6 @@ module.exports = async function handler(req, res) {
     // 원인을 찾기 쉽게 실패 이유(이름, AI 쪽 상태 코드와 오류 문구 앞부분, 모델 이름)를 함께 알려 줘요. 열쇠·질문은 없어요.
     const debug = { error: name, model };
     if (e && e.status) { debug.status = e.status; debug.detail = e.detail || ''; }
-    return send(res, 502, { mode: 'error', text: RETRY_TEXT, debug });
+    return fallback(debug);
   }
 };
