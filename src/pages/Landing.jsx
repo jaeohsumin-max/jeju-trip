@@ -15,13 +15,13 @@ const STEPS = [
 ];
 
 export default function Landing() {
-  useTitle('제주 오름이 | 오름이 궁금할 때 물어보세요');
+  useTitle('제주에 대한 모든 것');
   return (
     <div className="p-landing">
       <header className="hero">
         <div className="wrap">
-          <img className="logo" src="/images/logo.svg" alt="제주 오름이 로고: 오름 위로 떠오른 선글라스 쓴 햇살" />
-          <h1><span>제주 오름이</span></h1>
+          <img className="logo" src="/images/logo.svg" alt="제주에 대한 모든 것 로고: 오름 위로 떠오른 선글라스 쓴 햇살" />
+          <h1><span>제주에 대한 모든 것</span></h1>
           <p className="promise">제주 여행하는 사람들에게 오름에 대해 궁금한 것을 제대로 답해 주는 AI</p>
           <div className="btns">
             <Link className="btn" to="/agent">지금 물어보기</Link>
@@ -72,7 +72,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer>© 제주 오름이</footer>
+      <footer>© 제주에 대한 모든 것</footer>
     </div>
   );
 }

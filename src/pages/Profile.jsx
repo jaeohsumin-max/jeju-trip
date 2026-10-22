@@ -43,7 +43,7 @@ function downloadJson(data) {
 }
 
 export default function Profile() {
-  useTitle('내 여행 취향 | 제주 오름이');
+  useTitle('내 여행 취향 | 제주에 대한 모든 것');
   const [data, setData] = useState(loadProfile);
   const [tab, setTab] = useState('style');
   const [msg, setMsg] = useState(null); // { text, cls, sub }

@@ -143,7 +143,7 @@ function Fruit({ f, onHarvest, onLanded }) {
 }
 
 export default function Tree() {
-  useTitle('과일 나무 | 제주 오름이');
+  useTitle('과일 나무 | 제주에 대한 모든 것');
   const [text, setText] = useState('');
   const [fruit, setFruit] = useState(null); // 지금 찾은 과일
   const [cands, setCands] = useState([]); // 추천 사진
