@@ -96,3 +96,13 @@
 @media(max-width:360px){.p-agent form button{width:84px}}
 
 .p-agent{min-height:100dvh}
+
+/* 생각 과정: 종류별 색 (찾기=파랑, 판단=보라, 실행=초록) */
+.p-agent .think li{display:flex;gap:8px;align-items:flex-start;padding-left:8px;border-left:4px solid transparent}
+.p-agent .think li.k-find{border-left-color:#1d5fd1}
+.p-agent .think li.k-judge{border-left-color:#7b3fc4}
+.p-agent .think li.k-run{border-left-color:#23883a}
+.p-agent .think .kind{flex:none;margin-top:1px;padding:0 8px;border-radius:999px;font-size:.78rem;font-weight:800;line-height:1.6}
+.p-agent .think .kind.find{background:#e3ecfa;color:#14449a}
+.p-agent .think .kind.judge{background:#eee5f8;color:#5a2a99}
+.p-agent .think .kind.run{background:#e3f4e8;color:#1a6a2d}

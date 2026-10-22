@@ -20,8 +20,6 @@ const FAKE_REPLIES = [
   '아직 공부 중이에요! 5일차에 진짜로 알아볼게요.',
 ];
 
-const TOOL_LABEL = { find_spots: '장소 찾기', get_weather: '날씨 보기' };
-const NUMS = ['①', '②', '③', '④', '⑤', '⑥'];
 
 // 보낼 취향: 이 기기에 저장된 값 → 없으면 my_profile.json → 그래도 없으면 빈 취향
 function cleanProfile(d) {
@@ -65,7 +63,9 @@ async function callApi(url, question, profile, ms) {
     });
     if (!r.ok) return null;
     const d = await r.json();
-    return d && d.mode === 'live' && typeof d.text === 'string' && d.text.trim() ? d : null;
+    // 연습 모드(열쇠 없음)도 서버가 규칙으로 만든 진짜 장소·날씨 결과를 주면 보여 줘요
+    const ok = d && (d.mode === 'live' || (d.mode === 'practice' && Array.isArray(d.places)));
+    return ok && typeof d.text === 'string' && d.text.trim() ? d : null;
   } catch (e) {
     return null;
   } finally {
@@ -73,35 +73,40 @@ async function callApi(url, question, profile, ms) {
   }
 }
 
-// 먼저 /api/agent(도구를 쓰는 에이전트), 안 되면 /api/recommend, 그래도 안 되면 연습 모드
+// /api/agent(도구를 쓰는 에이전트)에 물어요. 안 되면 연습 모드 가짜 답으로 넘어가요
 async function ask(question) {
   const profile = await getProfile();
   const a = await callApi('/api/agent', question, profile, 60000);
-  if (a) {
-    return {
-      text: a.text.trim(),
-      itinerary: Array.isArray(a.itinerary) ? a.itinerary.slice(0, 3) : [],
-      steps: Array.isArray(a.steps) ? a.steps : [],
-    };
-  }
-  const r = await callApi('/api/recommend', question, profile, 30000);
-  if (r) return { text: r.text.trim(), itinerary: [], steps: null }; // 도구 기록이 없으면 '생각 과정'도 안 보여요
-  return { practice: true };
+  if (!a) return { practice: true };
+  return {
+    text: a.text.trim(),
+    itinerary: Array.isArray(a.itinerary) ? a.itinerary.slice(0, 3) : [],
+    steps: Array.isArray(a.steps) ? a.steps : [],
+    demo: a.mode === 'practice', // 서버가 열쇠 없이 규칙으로 만든 결과면 '연습 모드' 표시
+  };
 }
 
-// 생각 과정 보기: 서버가 기록한 실제 도구 호출만 한 줄씩 보여 줘요 (지어낸 설명 없음)
-function Think({ steps, picked }) {
-  const lines = steps.slice(0, 6).map((s, i) => {
-    const label = TOOL_LABEL[s && s.tool] || '도구 사용';
-    const area = s && s.input && typeof s.input.region === 'string' ? s.input.region + ' ' : '';
-    return NUMS[i] + ' ' + area + label + ' → ' + String((s && s.summary) || '').slice(0, 120);
-  });
-  if (!lines.length) lines.push('도구를 쓰지 않고 바로 답했어요');
-  else if (picked) lines.push('→ 결과를 보고 ' + picked + '곳을 골랐어요');
+// 생각 과정의 종류별 이름과 색 (찾기=파랑, 판단=보라, 실행=초록)
+const KINDS = { find: '찾기', judge: '판단', run: '실행' };
+
+// 생각 과정 보기: 서버가 기록한 한 줄({kind, text})을 순서대로, 종류별 색 표시와 함께 보여 줘요
+function Think({ steps }) {
+  const rows = steps.slice(0, 8).map((s) => ({
+    kind: s && KINDS[s.kind] ? s.kind : 'find',
+    text: String((s && s.text) || '').slice(0, 160),
+  }));
   return (
     <details className="think">
       <summary>생각 과정 보기</summary>
-      <ol>{lines.map((l, i) => <li key={i}>{l}</li>)}</ol>
+      <ol>
+        {rows.length === 0 && <li>도구를 쓰지 않고 바로 답했어요</li>}
+        {rows.map((r, i) => (
+          <li key={i} className={'k-' + r.kind}>
+            <span className={'kind ' + r.kind}>{KINDS[r.kind]}</span>
+            {r.text}
+          </li>
+        ))}
+      </ol>
     </details>
   );
 }
@@ -203,7 +208,7 @@ function Bot({ m }) {
     <div className={'botwrap' + (wide ? ' wide' : '')}>
       {m.practice && <span className="mode-tag">연습 모드</span>}
       <div className="msg bot">{m.text}</div>
-      {Array.isArray(m.steps) && <Think steps={m.steps} picked={items.length} />}
+      {Array.isArray(m.steps) && <Think steps={m.steps} />}
       {items.length > 0 && <Itinerary items={items} />}
     </div>
   );
@@ -237,7 +242,7 @@ export default function Agent() {
       const [res] = await Promise.all([ask(t), new Promise((r) => setTimeout(r, 1000))]);
       const bot = res.practice
         ? { who: 'bot', text: FAKE_REPLIES[fakeN.current++ % FAKE_REPLIES.length], practice: true }
-        : { who: 'bot', text: res.text, itinerary: res.itinerary, steps: res.steps };
+        : { who: 'bot', text: res.text, itinerary: res.itinerary, steps: res.steps, practice: res.demo };
       setMessages((ms) => [...ms, { id: nextId.current++, ...bot }]);
     } finally {
       setTyping(false);
