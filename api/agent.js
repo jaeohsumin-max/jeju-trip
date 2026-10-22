@@ -346,7 +346,8 @@ module.exports = async function handler(req, res) {
         }
         console.error('agent upstream detail: ' + scrub(detail, key).slice(0, 200));
         console.error('agent failed: upstream ' + r.status);
-        throw Object.assign(new Error('upstream'), { name: 'UpstreamError' });
+        // 화면 확인용으로 상태 코드와 오류 문구 앞부분(열쇠는 가림)을 오류에 달아 둬요
+        throw Object.assign(new Error('upstream'), { name: 'UpstreamError', status: r.status, detail: scrub(detail, key).slice(0, 160) });
       }
       return await r.json();
     } finally {
@@ -396,7 +397,7 @@ module.exports = async function handler(req, res) {
       const finish = String((cand && cand.finishReason) || '?').slice(0, 40);
       const block = String((dataOut && dataOut.promptFeedback && dataOut.promptFeedback.blockReason) || '-').slice(0, 40);
       console.error('agent empty: finishReason=' + finish + ' blockReason=' + block);
-      return fail(res, 502, RETRY_TEXT);
+      return send(res, 502, { mode: 'error', text: RETRY_TEXT, debug: { empty: true, finishReason: finish, blockReason: block, model } });
     }
     const parsed = parseFinal(text);
     if (!parsed) {
@@ -412,6 +413,9 @@ module.exports = async function handler(req, res) {
     // 예외 메시지는 남기지 않고 이름만 (시간 초과는 timeout)
     const name = e && e.name === 'AbortError' ? 'timeout' : String((e && e.name) || 'Error').slice(0, 40);
     console.error('agent failed: ' + name);
-    return fail(res, 502, RETRY_TEXT);
+    // 원인을 찾기 쉽게 실패 이유(이름, AI 쪽 상태 코드와 오류 문구 앞부분, 모델 이름)를 함께 알려 줘요. 열쇠·질문은 없어요.
+    const debug = { error: name, model };
+    if (e && e.status) { debug.status = e.status; debug.detail = e.detail || ''; }
+    return send(res, 502, { mode: 'error', text: RETRY_TEXT, debug });
   }
 };
