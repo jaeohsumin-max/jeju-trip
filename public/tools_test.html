@@ -168,7 +168,7 @@
       });
       table.hidden=d.spots.length===0;
       status.textContent=area.value+' · '+(indoor.value===''?'전체':indoor.value==='true'?'실내':'야외')+
-        ' → '+d.count+'곳'+(d.truncated?' (8곳까지만 보여 줘요)':'')+(d.count?'':' — 목록에 없어요');
+        ' → '+d.count+'곳'+(d.truncated?' (40곳까지만 보여 줘요)':'')+(d.count?'':' — 목록에 없어요');
     }catch(e){status.className='err';status.textContent='불러오지 못했어요. 서버가 켜져 있는지 확인해 주세요.'}
   }
   document.getElementById('form').onsubmit=e=>{e.preventDefault();run()};

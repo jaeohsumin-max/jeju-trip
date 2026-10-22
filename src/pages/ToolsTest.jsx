@@ -28,7 +28,7 @@ export default function ToolsTest() {
       setSpots(d.spots);
       setStatus({
         text: area + ' · ' + INDOOR_LABEL[indoor === '' ? '' : indoor === 'true'] + ' → ' + d.count + '곳' +
-          (d.truncated ? ' (8곳까지만 보여 줘요)' : '') + (d.count ? '' : ' — 목록에 없어요'),
+          (d.truncated ? ' (40곳까지만 보여 줘요)' : '') + (d.count ? '' : ' — 목록에 없어요'),
         err: false,
       });
     } catch (err) {

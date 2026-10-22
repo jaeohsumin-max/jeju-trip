@@ -5,21 +5,24 @@ const data = require('../data/jeju_spots.json');
 
 const AREAS = ['동쪽', '서쪽', '서귀포', '제주시'];
 const DAYS = ['오늘', '내일'];
-const MAX_RESULTS = 8;
+const TYPES = [...new Set(data.spots.map((s) => s.type))];
+const MAX_RESULTS = 40; // 지역당 장소 수보다 크게 잡아 목록이 잘리지 않게 해요
 const MAX_ROUTE = 5;
 
 // 모델에게 알려 줄 도구 설명
 const findSpotsTool = {
   name: 'find_spots',
   description:
-    '제주 장소 목록에서 지역(area)으로 장소를 찾아 이름, 지역, 실내 여부, 설명을 최대 ' + MAX_RESULTS + '곳까지 돌려줍니다. ' +
+    '제주 장소 목록에서 지역(area)으로 장소를 찾아 이름, 지역, 종류, 실내 여부, 설명을 최대 ' + MAX_RESULTS + '곳까지 돌려줍니다. ' +
     'indoor 를 true 로 주면 실내 장소만, false 로 주면 야외 장소만 찾고, 생략하면 모두 찾습니다. ' +
+    '장소가 많은 지역은 type(' + TYPES.join(', ') + ')으로 좁히면 고르기 쉽습니다. ' +
     '이 목록 밖의 장소는 없습니다. 결과에 없는 장소는 추천하거나 지어내지 말고, 결과가 비어 있으면 없다고 말하세요.',
   input_schema: {
     type: 'object',
     properties: {
       area: { type: 'string', enum: AREAS, description: '찾을 지역: 동쪽, 서쪽, 서귀포, 제주시 중 하나' },
       indoor: { type: 'boolean', description: '선택. true 면 실내 장소만, false 면 야외 장소만. 생략하면 둘 다' },
+      type: { type: 'string', enum: TYPES, description: '선택. 장소 종류로 좁히기. 생략하면 모든 종류' },
     },
     required: ['area'],
   },
@@ -32,10 +35,14 @@ function findSpots(input) {
     return { error: 'area 는 ' + AREAS.join(', ') + ' 중 하나여야 합니다.' };
   }
   const indoor = input && typeof input.indoor === 'boolean' ? input.indoor : undefined;
-  const matched = data.spots.filter((s) => s.region === area && (indoor === undefined || s.indoor === indoor));
+  const type = input && TYPES.includes(input.type) ? input.type : undefined;
+  const matched = data.spots.filter(
+    (s) => s.region === area && (indoor === undefined || s.indoor === indoor) && (type === undefined || s.type === type),
+  );
   const spots = matched.slice(0, MAX_RESULTS).map((s) => ({
     name: s.name,
     area: s.region,
+    type: s.type,
     indoor: s.indoor,
     description: s.note,
   }));
@@ -190,7 +197,7 @@ module.exports = async (req, res) => {
     return res.json(pt ? { ...w, lat: pt.lat, lng: pt.lng } : w); // 화면의 지도용으로 대표 좌표를 덧붙여요
   }
   const indoor = q.indoor === 'true' ? true : q.indoor === 'false' ? false : undefined;
-  const out = findSpots({ area: q.area, indoor });
+  const out = findSpots({ area: q.area, indoor, type: q.type });
   if (!out.error) {
     // 화면의 지도용으로 좌표를 덧붙여요 (모델에게 주는 findSpots 결과에는 좌표가 없어요)
     out.spots = out.spots.map((s) => {
