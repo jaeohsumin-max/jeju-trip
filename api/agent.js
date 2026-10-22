@@ -9,7 +9,7 @@
 //   text, itinerary                                                      // 지금 화면(일정 카드·지도)이 쓰는 값
 // }
 // 모델(Gemini)이 api/tools.js 의 도구(find_spots, get_weather, plan_route)를 골라 쓰고, 서버가 실행해 결과를 돌려줘요.
-// 도구 요청은 최대 5번. 열쇠는 환경 변수 GEMINI_API_KEY 에서만 읽고, 코드와 응답·로그에는 절대 넣지 않아요.
+// 도구 요청은 최대 5번. 열쇠는 환경 변수 CONSOLE(새 열쇠) → GEMINI_API_KEY(기존 열쇠) 순서로 읽고, 코드와 응답·로그에는 절대 넣지 않아요.
 // 열쇠가 없으면 연습 모드: find_spots → get_weather → 규칙 판단 순서로 같은 모양의 결과를 만들어요.
 
 const tools = require('./tools.js');
@@ -141,6 +141,13 @@ function buildUserMessage(profile, question) {
 
 // 로그에 남길 짧은 글에서 열쇠 값이 있으면 가려요 (혹시 모를 경우 대비)
 const scrub = (s, key) => (key ? String(s).split(key).join('[key]') : String(s));
+
+// 열쇠가 들어 있는 환경변수 이름 (앞에 있는 것부터 써 봐요): 새로 올린 CONSOLE → 기존 GEMINI_API_KEY
+// 앞의 열쇠가 한도 초과·거절(400/401/403/429)되면 다음 열쇠로 넘어가요.
+const KEY_VARS = ['CONSOLE', 'GEMINI_API_KEY'];
+function getKeys() {
+  return KEY_VARS.map((name) => ({ name, value: String(process.env[name] || '').trim() })).filter((k) => k.value);
+}
 
 // 마지막 답에서 JSON 을 꺼내요 (앞뒤에 다른 글이 붙어도 첫 { 부터 마지막 } 까지)
 function parseFinal(text) {
@@ -299,10 +306,13 @@ module.exports = async function handler(req, res) {
   const profile = cleanProfile(body && body.profile);
 
   // 2) 열쇠가 없으면 연습 모드
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) {
+  const keys = getKeys();
+  const scrubAll = (s) => keys.reduce((acc, k) => scrub(acc, k.value), String(s));
+  if (!keys.length) {
     try {
-      return send(res, 200, await practice(question, profile));
+      // 원인을 찾기 쉽게 이름에 console/gemini/google 이 들어간 환경변수 이름(값은 아님)을 알려 줘요
+      const names = Object.keys(process.env).filter((k) => /console|gemini|google/i.test(k)).slice(0, 6).map((k) => k + ':' + (process.env[k] ? 'set' : 'empty'));
+      return send(res, 200, { ...(await practice(question, profile)), debug: { noKey: true, envNames: names } });
     } catch (e) {
       console.error('agent practice failed: ' + String((e && e.name) || 'Error').slice(0, 40));
       return fail(res, 500, RETRY_TEXT);
@@ -313,6 +323,8 @@ module.exports = async function handler(req, res) {
   const contents = [{ role: 'user', parts: [{ text: buildUserMessage(profile, question) }] }];
   const steps = [];
   const startedAt = Date.now();
+  let keyStart = 0; // 이 요청에서 처음 써 볼 열쇠 번호
+  let usedVar = ''; // 실제로 쓰인 열쇠의 환경변수 이름 (값은 아님)
 
   // Gemini 한 번 부르기. toolsOff 면 도구를 못 쓰게 해요 (마지막 정리 차례)
   async function callGemini(toolsOff) {
@@ -326,33 +338,45 @@ module.exports = async function handler(req, res) {
     };
     if (toolsOff) payload.toolConfig = { functionCallingConfig: { mode: 'NONE' } };
 
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), Math.min(CALL_TIMEOUT_MS, left));
-    try {
-      const r = await fetch(API_BASE + model + ':generateContent', {
-        method: 'POST',
-        signal: ctl.signal,
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify(payload),
-      });
-      if (!r.ok) {
-        // 원인을 알 수 있게 오류 문구 앞부분만 남겨요 (열쇠·질문·답 본문은 없음)
-        let detail = '';
-        try {
-          const j = await r.json();
-          if (j && j.error && typeof j.error.message === 'string') detail = j.error.message;
-        } catch (e) {
-          /* 본문을 못 읽어도 상태 코드는 남겨요 */
+    // 열쇠를 차례로 써 봐요. 앞 열쇠가 막히면(한도 초과 등) 다음 열쇠로 같은 요청을 다시 보내요.
+    let lastErr = null;
+    for (let ki = keyStart; ki < keys.length; ki++) {
+      const k = keys[ki];
+      const left2 = TOTAL_TIMEOUT_MS - (Date.now() - startedAt);
+      if (left2 < 3000) break;
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), Math.min(CALL_TIMEOUT_MS, left2));
+      try {
+        const r = await fetch(API_BASE + model + ':generateContent', {
+          method: 'POST',
+          signal: ctl.signal,
+          headers: { 'content-type': 'application/json', 'x-goog-api-key': k.value },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) {
+          // 원인을 알 수 있게 오류 문구 앞부분만 남겨요 (열쇠·질문·답 본문은 없음)
+          let detail = '';
+          try {
+            const j = await r.json();
+            if (j && j.error && typeof j.error.message === 'string') detail = j.error.message;
+          } catch (e) {
+            /* 본문을 못 읽어도 상태 코드는 남겨요 */
+          }
+          console.error('agent upstream detail (' + k.name + '): ' + scrubAll(detail).slice(0, 200));
+          console.error('agent failed: upstream ' + r.status);
+          // 화면 확인용으로 열쇠 이름(값은 아님)·상태 코드·오류 문구 앞부분(열쇠는 가림)을 오류에 달아 둬요
+          lastErr = Object.assign(new Error('upstream'), { name: 'UpstreamError', status: r.status, detail: scrubAll(detail).slice(0, 160), keyVar: k.name });
+          if (ki < keys.length - 1 && [400, 401, 403, 429].includes(r.status)) { keyStart = ki + 1; continue; }
+          throw lastErr;
         }
-        console.error('agent upstream detail: ' + scrub(detail, key).slice(0, 200));
-        console.error('agent failed: upstream ' + r.status);
-        // 화면 확인용으로 상태 코드와 오류 문구 앞부분(열쇠는 가림)을 오류에 달아 둬요
-        throw Object.assign(new Error('upstream'), { name: 'UpstreamError', status: r.status, detail: scrub(detail, key).slice(0, 160) });
+        keyStart = ki; // 이 열쇠가 되니, 이 요청의 다음 호출도 이 열쇠로 해요
+        usedVar = k.name;
+        return await r.json();
+      } finally {
+        clearTimeout(timer);
       }
-      return await r.json();
-    } finally {
-      clearTimeout(timer);
     }
+    throw lastErr || Object.assign(new Error('deadline'), { name: 'AbortError' });
   }
 
   // 답에서 첫 후보의 조각들 (없으면 빈 목록)
@@ -414,20 +438,20 @@ module.exports = async function handler(req, res) {
     const parsed = parseFinal(text);
     if (!parsed) {
       // JSON 이 아니면(도구 없이 답할 질문 등) 모델이 쓴 글을 그대로 보여 줘요
-      return send(res, 200, { ...buildResult('live', [], '', '', steps, rounds), text });
+      return send(res, 200, { ...buildResult('live', [], '', '', steps, rounds), text, via: usedVar });
     }
     const places = enrichPlaces(parsed.places);
     const judge = typeof parsed.judge === 'string' ? parsed.judge.trim().slice(0, 200) : '';
     const tip = typeof parsed.tip === 'string' ? parsed.tip.trim().slice(0, 200) : '';
     if (judge) steps.push({ kind: 'judge', text: judge });
-    return send(res, 200, buildResult('live', places, judge, tip, steps, rounds));
+    return send(res, 200, { ...buildResult('live', places, judge, tip, steps, rounds), via: usedVar });
   } catch (e) {
     // 예외 메시지는 남기지 않고 이름만 (시간 초과는 timeout)
     const name = e && e.name === 'AbortError' ? 'timeout' : String((e && e.name) || 'Error').slice(0, 40);
     console.error('agent failed: ' + name);
     // 원인을 찾기 쉽게 실패 이유(이름, AI 쪽 상태 코드와 오류 문구 앞부분, 모델 이름)를 함께 알려 줘요. 열쇠·질문은 없어요.
     const debug = { error: name, model };
-    if (e && e.status) { debug.status = e.status; debug.detail = e.detail || ''; }
+    if (e && e.status) { debug.status = e.status; debug.detail = e.detail || ''; debug.keyVar = e.keyVar || ''; }
     return fallback(debug);
   }
 };

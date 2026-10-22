@@ -114,7 +114,7 @@ module.exports = async function handler(req, res) {
   const profile = cleanProfile(body && body.profile);
 
   // 2) 열쇠가 없으면 연습 모드 (장소 추천은 넣지 않아요)
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.CONSOLE || process.env.GEMINI_API_KEY; // 새 열쇠(CONSOLE) 우선
   if (!key) {
     return send(res, 200, {
       mode: 'practice',
